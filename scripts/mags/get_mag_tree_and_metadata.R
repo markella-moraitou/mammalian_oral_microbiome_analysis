@@ -57,39 +57,65 @@ host_diet <- read.csv(file.path(indir, "Lintulaakso_diet_filtered.csv"), header=
 ### Combine host metadata ###
 colnames(host_taxonomy) <- paste0("host_", colnames(host_taxonomy))
 
-host_meta <- host_taxonomy %>% left_join(host_habitat, by=c("host_museum.species"="Species")) %>%
+host_meta <- host_taxonomy[, colnames(host_taxonomy)!="host_species"] %>%
+    left_join(host_habitat, by=c("host_museum.species"="Species")) %>%
     left_join(host_diet,  by=c("host_museum.species"="Species"))
+
+# Get taxon label: the most specific taxonomic level that is not empty and is not a made up GTDB name
+get_taxon_label <- function(row) {
+    # For each rank, return the first non-empty value that does not contain numbers
+    for (rank in c("species", "genus", "family", "order", "class", "phylum")) {
+        if (!is.na(row[[rank]]) & !grepl("[0-9]", row[[rank]])) {
+            return(row[[rank]])
+        }
+    }
+}
 
 ## Extract taxonomic metadata
 meta <- mag_meta %>% rename("host_species"="Species") %>%
     left_join(host_meta, by=c("host_species"="host_museum.species"), relationship = "many-to-one") %>%
     separate(classification, sep=";", into=c("domain", "phylum", "class", "order", "family", "genus", "species")) %>%
-    mutate(across(domain:species, ~ str_remove(.x, "^.*__"))) %>%
-    mutate(across(domain:species, ~ case_when(.x == "" ~ NA, TRUE ~ .x))) %>%
+    mutate(across(domain:species, ~ case_when(str_detect(.x, "^[dpcofgs]__$") ~ NA, TRUE ~ .x))) %>%
     mutate(is.mag=TRUE) %>%
-    # Get nicer names for the bins
-    mutate(classification = case_when(species!="" ~ species,
-                             genus!="" ~ genus,
-                             TRUE ~ family)) %>%
-    group_by(classification) %>% mutate(label=paste(gsub(" ", "_", classification), row_number(), sep="_"))
-
-name_to_taxid <- meta %>% select(family, genus, species, classification)
+    # Get taxonomy label
+    mutate(classification=apply(., 1, get_taxon_label)) %>%
+    group_by(classification) %>% mutate(label=paste(gsub(" ", "_", classification), row_number(), sep="_")) %>%
+    # Remove *__ prefix
+    mutate(across(domain:species, ~ str_remove(.x, "^[dpcofgs]__"))) %>% ungroup()
 
 ## Get taxonomic ids
 get_taxon_id <- function(taxon_name) {
-  search_results <- entrez_search(db = "taxonomy", term = taxon_name)
+  search_results <- entrez_search(db = "taxonomy", term = paste(taxon_name, "AND (Bacteria[Subtree] OR Archaea[Subtree]) "))
   if (length(search_results$ids) == 1) {
     return(search_results$ids[1])
   } else if (length(search_results$ids) == 0) {
     cat("No results for", taxon_name, "\n")
-    return(NULL)
+    return(NA)
   } else {
     cat("Multiple results for", taxon_name, "\n")
-    return(NULL)
+    return(NA)
   }
  }
 
-taxids <- sapply(name_to_taxid$name, get_taxon_id)
+# Get unique classifications
+name_to_taxid = data.frame(name = unique(meta$classification))
+
+# Get simplied classifications to facilitate searching the NCBI DB
+# e.g. remove underscores after genus and species names, as well as the *__ prefix
+name_to_taxid$simple_name <- name_to_taxid$name %>%
+                            str_remove("^[dpcofgs]__") %>%
+                            str_replace("_.+ ", " ") %>% # Remove underscore plus character(s) before a space
+                            str_replace("_.+$", "") # Remove underscore plus character at the end of the string
+
+# Get taxids                         
+taxids <- sapply(name_to_taxid$simple_name, get_taxon_id)
+name_to_taxid$taxids <- unlist(taxids)[match(name_to_taxid$simple_name, names(unlist(taxids)))]
+
+# Save
+write.csv(name_to_taxid, file = file.path(subdir, "name_to_taxid.csv"), row.names=FALSE, quote=FALSE)
+
+# Add ids to metadata
+meta$ncbi_taxid <- name_to_taxid$taxids[match(meta$classification, name_to_taxid$name)]
 
 # Filter MAG metadata
 bac_meta <- meta %>% filter(domain == "Bacteria")
