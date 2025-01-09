@@ -16,6 +16,7 @@ library(phytools)
 library(ggtree)
 library(ggnewscale)
 library(RColorBrewer)
+library(rentrez)
 
 #### VARIABLES AND WORKING DIRECTORY ####
 
@@ -27,6 +28,9 @@ plot_setup(file.path("..", "..", "input", "palettes"))
 
 # Create subdirectory for output
 dir.create(subdir, recursive = TRUE, showWarnings = FALSE)
+
+# Get ENTREZ KEY for taxonomic information
+options(ENTREZ_KEY = Sys.getenv("API_KEY"))
 
 #######################
 #####  LOAD INPUT #####
@@ -64,10 +68,28 @@ meta <- mag_meta %>% rename("host_species"="Species") %>%
     mutate(across(domain:species, ~ case_when(.x == "" ~ NA, TRUE ~ .x))) %>%
     mutate(is.mag=TRUE) %>%
     # Get nicer names for the bins
-    mutate(label = case_when(species!="" ~ species,
+    mutate(classification = case_when(species!="" ~ species,
                              genus!="" ~ genus,
                              TRUE ~ family)) %>%
-    group_by(label) %>% mutate(label=paste(gsub(" ", "_", label), row_number(), sep="_"))
+    group_by(classification) %>% mutate(label=paste(gsub(" ", "_", classification), row_number(), sep="_"))
+
+name_to_taxid <- meta %>% select(family, genus, species, classification)
+
+## Get taxonomic ids
+get_taxon_id <- function(taxon_name) {
+  search_results <- entrez_search(db = "taxonomy", term = taxon_name)
+  if (length(search_results$ids) == 1) {
+    return(search_results$ids[1])
+  } else if (length(search_results$ids) == 0) {
+    cat("No results for", taxon_name, "\n")
+    return(NULL)
+  } else {
+    cat("Multiple results for", taxon_name, "\n")
+    return(NULL)
+  }
+ }
+
+taxids <- sapply(name_to_taxid$name, get_taxon_id)
 
 # Filter MAG metadata
 bac_meta <- meta %>% filter(domain == "Bacteria")
