@@ -13,18 +13,12 @@ library(tidytree)
 library(tibble)
 library(treeio)
 library(phytools)
-library(ggtree)
-library(ggnewscale)
-library(RColorBrewer)
 library(rentrez)
 
 #### VARIABLES AND WORKING DIRECTORY ####
 
 indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq output and sample metadata 
 subdir <- normalizePath(file.path("..", "..", "output", "mags")) # subdirectory for the output of this script
-
-source(file.path("..", "plot_setup.R"))
-plot_setup(file.path("..", "..", "input", "palettes"))
 
 # Create subdirectory for output
 dir.create(subdir, recursive = TRUE, showWarnings = FALSE)
@@ -55,7 +49,7 @@ host_diet <- read.csv(file.path(indir, "Lintulaakso_diet_filtered.csv"), header=
 #################
 
 ### Combine host metadata ###
-colnames(host_taxonomy) <- paste0("host_", colnames(host_taxonomy))
+colnames(host_taxonomy) <- paste0("host_", tolower(colnames(host_taxonomy)))
 
 host_meta <- host_taxonomy[, colnames(host_taxonomy)!="host_species"] %>%
     left_join(host_habitat, by=c("host_museum.species"="Species")) %>%
@@ -71,8 +65,10 @@ get_taxon_label <- function(row) {
     }
 }
 
-## Extract taxonomic metadata
-meta <- mag_meta %>% rename("host_species"="Species") %>%
+# Combine and clean metadata
+meta <-
+    # Add host metadata
+    mag_meta %>% rename("host_species"="Species") %>%
     left_join(host_meta, by=c("host_species"="host_museum.species"), relationship = "many-to-one") %>%
     separate(classification, sep=";", into=c("domain", "phylum", "class", "order", "family", "genus", "species")) %>%
     mutate(across(domain:species, ~ case_when(str_detect(.x, "^[dpcofgs]__$") ~ NA, TRUE ~ .x))) %>%
@@ -169,104 +165,6 @@ add_node_metadata <- function(tree, metadata, traits) {
 bac_meta_new <- add_node_metadata(bac_tree_new, bac_meta, c("phylum", "class", "order", "family", "genus"))
 ar_meta_new <- add_node_metadata(ar_tree_new, ar_meta, c("phylum", "class", "order", "family", "genus"))
 
-####################
-#### PLOT TREES ####
-####################
-
-## Create phylum palettes
-## Bacteria
-bac_phyla <- bac_meta$phylum %>% unique
-bac_phyla_df <- data.frame(phylum=bac_phyla,
-                            # Colour all subgroups of Bacillota the same
-                            grouped = ifelse(grepl("Bacillota_", bac_phyla), "Bacillota", bac_phyla))
-
-# Create a custom palette using RColorBrewer
-mag_palette_b <- left_join(bac_phyla_df,
-                            data.frame(colour = colorRampPalette(brewer.pal(8, "Dark2"))(length(unique(bac_phyla_df$grouped))),
-                             grouped = unique(bac_phyla_df$grouped)))
-
-mag_palette_b <- setNames(mag_palette_b$colour, mag_palette_b$phylum)             
-
-## Archeae
-ar_phyla <- ar_meta$phylum %>% unique
-
-mag_palette_a <- brewer.pal(length(ar_phyla), "Accent")
-names(mag_palette_a) <- ar_phyla
-
-#### Bacteria tree ####
-# Colour by order and habitat
-bac_p <- ggtree(bac_tree_new, layout = "circular", aes(color=phylum)) %<+% bac_meta_new +
-  scale_colour_manual(values = mag_palette_b, name = "Phylum", na.value = "black") +
-  new_scale_color() +
-  geom_tiplab(size=1.5, aes(colour=host_order)) +
-  scale_colour_manual(values = order_palette, name = "Order", na.value = "black") +
-  new_scale_color() +
-  geom_tippoint(shape=21, size=1, stroke=0.5, 
-                aes(fill=host_order, color=habitat.general)) +
-  scale_fill_manual(values = order_palette, name = "Order", na.value = "black") +
-  scale_colour_manual(values = habitat_palette, name = "Habitat", na.value = "black") +
-  scale_x_continuous(expand = c(0.1, 0.1)) +  # Adjust the x-axis scaling 
-  theme(plot.margin = unit(c(-10, -10, -10, -10), "cm"), # Remove margins
-  legend.position=c(0.2, 0.7),
-  legend.text = element_text(size=20),
-  legend.title = element_text(size=20)) +
-  guides(fill = guide_legend(override.aes = list(size = 5)), 
-  color = guide_legend(override.aes = list(size = 5)))
-
-# Highlight the phyla
-bac_node_colours <- data.frame(node=integer(), phylum=character())
-for (val in unique(bac_meta_new$phylum)) {
-    if (is.na(val)) {
-        next
-    }
-    tips <- bac_meta_new$label[bac_meta_new$is.tip & bac_meta_new$phylum == val]
-    node <- ifelse(length(tips) > 1, getMRCA(bac_tree_new, tips), bac_meta_new$node[bac_meta_new$label == tips])
-    bac_node_colours <- rbind(bac_node_colours, data.frame(node=node, phylum=val))
-}
-bac_node_colours$colour <- mag_palette_b[bac_node_colours$phylum]
-
-for (i in 1:nrow(bac_node_colours)) {
-    bac_p <- bac_p + geom_hilight(node=bac_node_colours$node[i], label=bac_node_colours$phylum[i], geom="label",
-                                     fill=bac_node_colours$colour[i], alpha=0.2)
-}
-
-#### Archaea tree ####
-# Colour by order and habitat
-ar_p <- ggtree(ar_tree_new, layout = "circular", aes(color=phylum)) %<+% ar_meta_new +
-  scale_colour_manual(values = mag_palette_a, name = "Phylum", na.value = "black") +
-  new_scale_color() +
-  geom_tiplab(size=3, aes(colour=host_order)) +
-  scale_colour_manual(values = order_palette, name = "Order", na.value = "black") +
-  new_scale_color() +
-  geom_tippoint(shape=21, size=3, stroke=1, 
-                aes(fill=host_order, color=habitat.general)) +
-  scale_fill_manual(values = order_palette, name = "Order", na.value = "black") +
-  scale_colour_manual(values = habitat_palette, name = "Habitat", na.value = "black") +
-  scale_x_continuous(expand = c(0.04, 0.04)) +  # Adjust the x-axis scaling 
-  theme(legend.position=c(0.1, 0.85),
-  legend.text = element_text(size=10),
-  legend.title = element_text(size=10)) +
-  guides(fill = guide_legend(override.aes = list(size = 2.5)), 
-  color = guide_legend(override.aes = list(size = 2.5)))
-
-
-# Highlight the phyla
-ar_node_colours <- data.frame(node=integer(), phylum=character())
-for (val in unique(ar_meta_new$phylum)) {
-    if (is.na(val)) {
-        next
-    }
-    tips <- ar_meta_new$label[ar_meta_new$is.tip & ar_meta_new$phylum == val]
-    node <- ifelse(length(tips) > 1, getMRCA(ar_tree_new, tips), ar_meta_new$node[ar_meta_new$label == tips])
-    ar_node_colours <- rbind(ar_node_colours, data.frame(node=node, phylum=val))
-}
-ar_node_colours$colour <- mag_palette_a[ar_node_colours$phylum]
-
-for (i in 1:nrow(ar_node_colours)) {
-    ar_p <- ar_p + geom_hilight(node=ar_node_colours$node[i], label=ar_node_colours$phylum[i], geom="label",
-                                     fill=ar_node_colours$colour[i], alpha=0.2)
-}
-
 #####################
 #### SAVE OUTPUT ####
 #####################
@@ -276,6 +174,3 @@ write.tree(ar_tree_new, file = file.path(subdir, "ar_tree.tree"))
 
 write.table(bac_meta_new, file = file.path(subdir, "bac_meta.tsv"), sep = "\t", row.names=FALSE, quote=FALSE)
 write.table(ar_meta_new, file = file.path(subdir, "ar_meta.tsv"), sep = "\t", row.names=FALSE, quote=FALSE)
-
-ggsave(bac_p, file=file.path(subdir, "bac_genome_tree.png"), width = 20, height = 20)
-ggsave(ar_p, file=file.path(subdir, "ar_genome_tree.png"), width = 12, height = 12)
