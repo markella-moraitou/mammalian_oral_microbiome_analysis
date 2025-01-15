@@ -31,8 +31,14 @@ def search_OBT_list(search_term_list, obt_type_list):
 
 def search_relations(taxon, OBT_search):
     ''' Gets a taxon and a list of OBTs and finds if the taxon is related to any of them '''
-    print("Searching for relations between taxon " + taxon.name + " and OBTs")
     relations = pd.DataFrame(columns=["taxon", "OBT", "id", "obt_type"])
+    # Check if taxon causes error, in which case it was not created properly and will be skipped
+    try:
+        hasattr(taxon, 'name')
+    except Exception as e:
+        print(f"Error accessing taxon")
+        return relations  # Return an empty DataFrame or handle as needed
+    print("Searching relations for taxon: " + taxon.name)
     total_rels = 0
     for i in range(0, OBT_search.shape[0]):
         obt_id = OBT_search.iloc[i]["id"]
@@ -43,7 +49,16 @@ def search_relations(taxon, OBT_search):
         if obt.obt_type.name != obt_type:
             print("OBT " + obt.name + " is not the correct type")
             continue
-        rels = list(Relation.search(taxon=taxon, obt=obt))
+        max_retries = 1
+        for attempt in range(max_retries):
+            try:
+                rels = list(Relation.search(taxon=taxon, obt=obt))
+                break  # If successful, exit the retry loop
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    print("Max retries reached. Skipping this OBT.")
+                    rels = []
         total_rels += len(rels)
         for r in rels:
             new_row = pd.DataFrame([{"taxon": taxon.name, "OBT": r.obt.name, "obt_type": obt_type, "id": r.obt.identifier}])
@@ -74,7 +89,8 @@ if __name__ == "__main__":
     print(version())
     # Define search terms
     habitat_terms = ["laboratory equipment", "marine water", "deep sea", "soil",
-                 "mammalian", "wild animal", "biofilm in natural environment", "host associated biofilm",
+                 "mammalian", "wild animal", "mammalian livestock",
+                 "biofilm in natural environment", "host associated biofilm",
                  "mouth", "dental plaque", "gut", "rumen"]
     
     phenotype_terms = ["biofilm forming", "non-biofilm forming", 
@@ -86,19 +102,18 @@ if __name__ == "__main__":
     # Read CLI arguments
     print("Reading arguments:")
     taxon_list_path = sys.argv[1]
+    #taxon_list_path = "../output/mags/taxids.tmp"
     
     print("Taxon list:" + taxon_list_path)
     
     outdir = sys.argv[2]
-    #outdir = os.getcwd()
+    #outdir = "../output/mags/"
     print("Output directory: " + outdir)
     
     # Read taxon list
     taxon_list = pd.read_csv(taxon_list_path, header=None)
     # Paste "ncbi:" to each taxon id in the list
     taxon_list = ["ncbi:" + str(taxon) for taxon in taxon_list[0]]
-    #taxon_list = ["ncbi:400634", "ncbi:482", "ncbi:745", "ncbi:970", "ncbi:59753"]
-    # Lysinibacillus, Neisseria, Pasteurella, Selenomonas, Alcanivorax
     
     print("HABITATS:")
     habitat_relations = search_relations_taxa_list(taxon_list, habitat_terms, ["habitat"]*len(habitat_terms))
