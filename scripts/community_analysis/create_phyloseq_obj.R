@@ -45,9 +45,6 @@ rc_path <- file.path(indir, "read_count.csv")
 rl_path <- file.path(indir, "read_length.csv")
 decom_path <- file.path(indir, "decOM_output.csv")
 
-# HOMD database
-#homd_path <- file.path(projdir, "input", "HOMD_taxon_table.csv")
-
 #### Load files
 # Load OTU table
 otu_table <- read.table(otu_table_path, sep="\t", comment.char="", header=TRUE)
@@ -64,9 +61,6 @@ rl <- read.csv(rl_path) %>% rename_with( ~ paste0(., "_avlength")) # average rea
 decom <- read.csv(decom_path, row.names = NULL) %>% # decOM output
   # remove entries where no kmers have been counted
   filter(rowSums(!is.na(select(., starts_with("p_")))) > 0)
-
-# Load HOMD database
-#homd <- read.csv(homd_path, skip=1) %>% filter(Body_site == "Oral") # Keep only oral taxa
 
 ###############################################
 #### COMBINE AND TIDY UP SAMPLE METADATA  #####
@@ -169,8 +163,8 @@ rownames(meta) <- meta$new_name
 ###############################
 
 # If the file already exists, load it, otherwise start an empty file
-if(file.exists(file.path(subdir, "taxonomy_all.csv"))) {
-  taxonomy <- read.csv(file.path(subdir, "taxonomy_all.csv"), colClasses = "character")
+if(file.exists(file.path(subdir, "taxonomy_all.tsv"))) {
+  taxonomy <- read.table(file.path(subdir, "taxonomy_all.tsv"), sep = "\t", colClasses = "character", header=TRUE)
   cont <- TRUE
 } else {
   taxonomy <- data.frame(superkingdom=character(),
@@ -287,20 +281,20 @@ saveRDS(phy_sp, file.path(subdir, "phyloseq_objects", "phy_sp.RDS"))
 saveRDS(phy_sp_norm, file.path(subdir, "phyloseq_objects", "phy_sp_norm.RDS"))
 
 # Constituent parts of phyloseq object
-write.table(otu_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_OTU.csv"), sep=",", row.names=TRUE, quote=FALSE)
-write.table(tax_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_TAX.csv"), sep=",", row.names=TRUE, quote=FALSE)
-write.table(data.frame(sample_data(phy_sp)), file.path(subdir, "phyloseq_objects", "phy_sp_SAM.csv"), sep=",", row.names=TRUE, quote=FALSE)
-write.table(otu_table(phy_sp_norm), file.path(subdir, "phyloseq_objects", "phy_sp_norm_OTU.csv"), sep=",", row.names=TRUE, quote=FALSE)
+write.table(otu_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_OTU.tsv"), sep = "\t", row.names=TRUE, quote=FALSE)
+write.table(tax_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_TAX.tsv"), sep = "\t", row.names=TRUE, quote=FALSE)
+write.table(data.frame(sample_data(phy_sp)), file.path(subdir, "phyloseq_objects", "phy_sp_SAM.tsv"), sep = "\t", row.names=TRUE, quote=TRUE)
+write.table(otu_table(phy_sp_norm), file.path(subdir, "phyloseq_objects", "phy_sp_norm_OTU.tsv"), sep = "\t", row.names=TRUE, quote=TRUE)
 
 # Entire taxonomy table
-write.table(taxonomy, file.path(subdir, "taxonomy_all.csv"), sep=",", row.names=FALSE, quote=TRUE)
+write.table(taxonomy, file.path(subdir, "taxonomy_all.tsv"), sep = "\t", row.names=FALSE, quote=TRUE)
 
 # Entire metadata table
 # Get a big metadata table with all lab samples
 meta_all <- meta_all %>% left_join(data.frame(phy_sp@sam_data)) %>%
   mutate(is.neg=grepl("blank|control", Species))
 
-write.table(meta_all, file.path(subdir, "metadata_all.csv"), sep=",", row.names=FALSE, quote=FALSE)
+write.table(meta_all, file.path(subdir, "metadata_all.tsv"), sep = "\t", row.names=FALSE, quote=TRUE)
 
 # Save names and ids of retained taxa
 names_to_ids_filt <- names_to_ids %>% filter(names %in% rownames(otu_table(phy_sp)))
