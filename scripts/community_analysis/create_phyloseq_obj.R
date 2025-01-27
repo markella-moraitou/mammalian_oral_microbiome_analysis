@@ -113,6 +113,12 @@ levels <- levels[which(! levels %in% c("Rest", "Control/blank"))] %>% append(c("
 
 meta$Order_grouped <- factor(meta$Order_grouped, levels = levels)
 
+# Change Papio anubis diet to frugivore
+meta$calculated_species_main_diet[meta$Species == "Papio anubis"] <- "Frugivore"
+
+# Turn diet categories to factors
+meta$diet.general <- factor(meta$diet.general, levels=c("Herbivore", "Frugivore", "Omnivore", "Animalivore"))
+
 ## Get better samples names
 rename <- meta %>%
   # Give common name to blanks and controls
