@@ -21,7 +21,11 @@ library(cowplot)
 
 # Directory and file paths paths
 indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq output and sample metadata 
-subdir <- normalizePath(file.path("..", "..", "output", "community_analysis")) # subdirectory for the output of this script
+subdir <- normalizePath(file.path("..", "..", "output", "community_analysis", "raw_data_plots")) # subdirectory for the output of this script
+phydir <- normalizePath(file.path("..", "..", "output", "community_analysis", "phyloseq_objects")) # Directory with phyloseq objects
+
+# Create output directory if it doesn't exist
+if (!dir.exists(subdir)) dir.create(subdir, recursive = TRUE)
 
 ## Set up for plotting
 source(file.path("..", "plot_setup.R"))
@@ -33,8 +37,8 @@ theme_set(custom_theme())
 #######################
 
 # Load phy
-phy_sp <- readRDS(file.path(subdir, "phyloseq_objects", "phy_sp.RDS"))
-phy_sp_norm <- readRDS(file.path(subdir, "phyloseq_objects", "phy_sp_norm.RDS"))
+phy_sp <- readRDS(file.path(phydir, "phy_sp.RDS"))
+phy_sp_norm <- readRDS(file.path(phydir, "phy_sp_norm.RDS"))
 
 #######################
 #### SUMMARY PLOTS ####
@@ -57,13 +61,9 @@ phy_phylum@tax_table[,"phylum"] <- phylum_grouped$phylum_grouped[match(phy_phylu
 phy_phylum <- tax_glom(phy_phylum, taxrank = "phylum")
 taxa_names(phy_phylum) <- phy_phylum@tax_table[,"phylum"] 
 
-# Get phylum palette
-phylum_grouped_palette <- setNames(brewer.pal(5, "Set1"), phylum_grouped$phylum_grouped[!grepl("Other", phylum_grouped$phylum_grouped)])
-phylum_grouped_palette <- phylum_grouped_palette %>% append(c("Other Bacteria" = "grey20", "Other Archaea" = "grey80"))
-
 # Melt and turn phyla into a factor and reorder
 phy_phylum_melt <- psmelt(transform(phy_phylum, "compositional"))
-phy_phylum_melt$OTU <- factor(phy_phylum_melt$OTU , levels=names(phylum_grouped_palette))
+phy_phylum_melt$OTU <- factor(phy_phylum_melt$OTU , levels=names(phylum_palette))
 
 # Order by fusobacteriota
 sample_levels <- select(phy_phylum_melt, c(Sample, Species, Order_grouped, OTU, Abundance)) %>% filter(OTU == "Pseudomonadota") %>%
@@ -74,7 +74,7 @@ phy_phylum_melt$Sample <- factor(phy_phylum_melt$Sample, levels=sample_levels)
 p = ggplot(data = phy_phylum_melt, aes(x = Abundance, y = Sample, fill = OTU)) +
   geom_bar(stat = "identity") +
   facet_grid(Order_grouped~., space = "free_y", scales = "free_y", switch = "y") +
-  scale_fill_manual(values=phylum_grouped_palette, name = "Phylum") +
+  scale_fill_manual(values=phylum_palette, name = "Phylum") +
   scale_x_continuous(expand = c(0,0)) +
   theme(legend.position = "bottom", legend.title.position = "top", legend.key.spacing.x = unit(0.5, "cm"),
         axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank()) +
@@ -204,12 +204,12 @@ ps <- ggplot(data = sample_sums, aes(x = sum, fill = order, colour = order)) +
 
 taxa_sums <- data.frame(sum = taxa_sums(phy_sp)/sum(taxa_sums(phy_sp)), phylum = tax_table(phy_sp)[,"phylum"]) %>% rownames_to_column("Taxon") %>% 
   left_join(select(phylum_grouped, c(phylum, phylum_grouped)), by = "phylum") %>%
-  mutate(phylum_grouped = factor(phylum_grouped, levels = names(phylum_grouped_palette)))
+  mutate(phylum_grouped = factor(phylum_grouped, levels = names(phylum_palette)))
 
 pt <- ggplot(data = taxa_sums, aes(x = sum, colour = phylum_grouped, fill = phylum_grouped)) +
   geom_density(alpha=0.2, linewidth=1.5) +
-  scale_colour_manual(values=phylum_grouped_palette, name = "Phylum") +
-  scale_fill_manual(values=phylum_grouped_palette, name = "Phylum") +
+  scale_colour_manual(values=phylum_palette, name = "Phylum") +
+  scale_fill_manual(values=phylum_palette, name = "Phylum") +
   scale_x_continuous(trans = "log10") +
   geom_density(data = taxa_sums, aes(x = sum), fill = "transparent", linewidth = 1.5, linetype = "dashed", inherit.aes = FALSE)
 
