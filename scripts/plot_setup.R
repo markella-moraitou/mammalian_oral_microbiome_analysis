@@ -13,7 +13,8 @@ custom_theme <- function() {
       axis.text.x=element_text(angle=90),
       axis.title=element_text(size = 14, face = "bold"),
       legend.title=element_text(size = 14, face = "bold"),
-      legend.text=element_text(size=8),
+      legend.text=element_text(size=12),
+      strip.text = element_text(size = 12, face = "bold"),
       strip.background = element_rect(fill = "white", colour = "black")
     )
 }
@@ -51,6 +52,10 @@ plot_setup <- function(palette_dir) {
 
     habitat_palette <<- read.csv(file=file.path(palette_dir, "habitat_palette.csv"))$x
     names(habitat_palette) <<- read.csv(file=file.path(palette_dir, "habitat_palette.csv"))$X
+    
+    phylum_palette <<- read.csv(file=file.path(palette_dir, "phylum_palette.csv"))$x
+    names(phylum_palette) <<- read.csv(file=file.path(palette_dir, "phylum_palette.csv"))$X
+    
   } else {
     cat("No custom palettes found\n")
   }
