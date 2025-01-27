@@ -21,7 +21,12 @@ library(microbiomeutilities)
 
 # Directory and file paths paths
 indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq output and sample metadata 
-subdir <- normalizePath(file.path("..", "..", "output", "community_analysis")) # subdirectory for the output of this script
+outdir <- normalizePath(file.path("..", "..", "output", "community_analysis"))
+subdir <- normalizePath(file.path(outdir, "assess_contamination")) # subdirectory for the output of this script
+phydir <- normalizePath(file.path(outdir, "phyloseq_objects")) # Directory with phyloseq objects
+
+# Create output directory if it does not exist
+if (!dir.exists(subdir)) dir.create(subdir, recursive = TRUE)
 
 ## Set up for plotting
 source(file.path("..", "plot_setup.R"))
@@ -33,11 +38,11 @@ theme_set(custom_theme())
 #######################
 
 # Load phy
-phy_sp <- readRDS(file.path(subdir, "phyloseq_objects", "phy_sp.RDS"))
-phy_sp_norm <- readRDS(file.path(subdir, "phyloseq_objects", "phy_sp_norm.RDS"))
+phy_sp <- readRDS(file.path(phydir, "phy_sp.RDS"))
+phy_sp_norm <- readRDS(file.path(phydir, "phy_sp_norm.RDS"))
 
 # Habitat OTU relations
-habitats_table <- read.csv(file.path(subdir, "habitat_relations.csv"))
+habitats_table <- read.csv(file.path(outdir, "habitat_relations.csv"))
 
 # Set minimum sample content threshold
 min_samp <- 10^5
@@ -359,7 +364,9 @@ phy_sp_f <- phy_sp %>% subset_taxa(!(taxa_names(phy_sp) %in% common_in_contols))
 # Filter out abundances less than the threshold
 phy_sp_f@otu_table[transform(phy_sp_f, "compositional")@otu_table < min_ab] <- 0
 
-# Remove samples and taxa with no reads and negatives
+# Remove samples with an oral/contam ratio < 1 samples with no reads and negatives
+contaminated_taxa <- assess_samples %>% filter(oral_contam_ratio < 1) %>% pull(new_name)
+phy_sp_f <- prune_samples(!(sample_names(phy_sp_f) %in% contaminated_taxa), phy_sp_f)
 phy_sp_f <- prune_samples(sample_sums(phy_sp_f) > 0 & !phy_sp_f@sam_data$is.neg, phy_sp_f)
 phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
 
@@ -369,8 +376,8 @@ phy_sp_f@sam_data$taxa_filt <- estimate_richness(phy_sp_f, measures="Observed")$
 # Normalise
 phy_sp_f_norm <- phy_sp_f %>% microbiome::transform("clr")
 
-saveRDS(phy_sp_f, file.path(subdir, "phyloseq_objects", "phy_sp_f.RDS"))
-saveRDS(phy_sp_f_norm, file.path(subdir, "phyloseq_objects", "phy_sp_f_norm.RDS"))
+saveRDS(phy_sp_f, file.path(phydir, "phy_sp_f.RDS"))
+saveRDS(phy_sp_f_norm, file.path(phydir, "phy_sp_f_norm.RDS"))
 
 ########################
 #### CREATE SUBSETS ####
@@ -420,5 +427,5 @@ phy_norm_deep <- phy_deep %>% microbiome::transform("clr")
 # Save phyloseq objects
 for (obj in c("phy_habitat", "phy_artio", "phy_carni", "phy_prim", "phy_deep",
                "phy_habitat_norm", "phy_artio_norm", "phy_carni_norm", "phy_norm_prim", "phy_norm_deep")) {
-  saveRDS(get(obj), file.path(subdir, "phyloseq_objects", paste0(obj, ".RDS")))
+  saveRDS(get(obj), file.path(phydir, paste0(obj, ".RDS")))
 }
