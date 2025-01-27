@@ -14,3 +14,5 @@ sed -i '/taxids/d' $outdir/taxids.tmp
 
 #### RUN SCRIPT ####
 python $scriptdir/access_omnicrobe_db.py $outdir/taxids.tmp $outdir
+
+rm $outdir/taxids.tmp

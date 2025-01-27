@@ -1,6 +1,7 @@
 import pandas as pd
 import sys
 import os
+import time
 from external.omnicrobe import Taxon, OBT, Relation, version
 
 ## Define functions
@@ -49,13 +50,14 @@ def search_relations(taxon, OBT_search):
         if obt.obt_type.name != obt_type:
             print("OBT " + obt.name + " is not the correct type")
             continue
-        max_retries = 1
+        max_retries = 2
         for attempt in range(max_retries):
             try:
                 rels = list(Relation.search(taxon=taxon, obt=obt))
                 break  # If successful, exit the retry loop
             except Exception as e:
                 print(f"Attempt {attempt + 1} failed: {e}")
+                time.sleep(10)  # Wait 1 second before retrying
                 if attempt == max_retries - 1:
                     print("Max retries reached. Skipping this OBT.")
                     rels = []
@@ -102,12 +104,12 @@ if __name__ == "__main__":
     # Read CLI arguments
     print("Reading arguments:")
     taxon_list_path = sys.argv[1]
-    #taxon_list_path = "../output/mags/taxids.tmp"
+    #taxon_list_path = "../output/community_analysis/taxids.tmp"
     
     print("Taxon list:" + taxon_list_path)
     
     outdir = sys.argv[2]
-    #outdir = "../output/mags/"
+    #outdir = "../output/community_analysis/"
     print("Output directory: " + outdir)
     
     # Read taxon list
