@@ -112,19 +112,24 @@ if __name__ == "__main__":
     #outdir = "../output/community_analysis/"
     print("Output directory: " + outdir)
     
+    relation_type = sys.argv[3]
+    
     # Read taxon list
     taxon_list = pd.read_csv(taxon_list_path, header=None)
     # Paste "ncbi:" to each taxon id in the list
     taxon_list = ["ncbi:" + str(taxon) for taxon in taxon_list[0]]
     
-    print("HABITATS:")
-    habitat_relations = search_relations_taxa_list(taxon_list, habitat_terms, ["habitat"]*len(habitat_terms))
-    habitat_relations.to_csv(os.path.join(outdir, "habitat_relations.csv"), index=False)
+    if relation_type == "habitat":
+        print("HABITATS:")
+        habitat_relations = search_relations_taxa_list(taxon_list, habitat_terms, ["habitat"]*len(habitat_terms))
+        habitat_relations.to_csv(os.path.join(outdir, "habitat_relations.csv"), index=False)
     
-    print("PHENOTYPES:")
-    phenotype_relations = search_relations_taxa_list(taxon_list, phenotype_terms, ["phenotype"]*len(phenotype_terms))
-    phenotype_relations.to_csv(os.path.join(outdir,"phenotype_relations.csv"), index=False)
+    if relation_type == "phenotype":
+        print("PHENOTYPES:")
+        phenotype_relations = search_relations_taxa_list(taxon_list, phenotype_terms, ["phenotype"]*len(phenotype_terms))
+        phenotype_relations.to_csv(os.path.join(outdir,"phenotype_relations.csv"), index=False)
     
-    print("USES:")
-    use_relations = search_relations_taxa_list(taxon_list, use_terms, ["use"]*len(use_terms))
-    use_relations.to_csv(os.path.join(outdir, "use_relations.csv"), index=False)
+    if relation_type == "use":
+        print("USES:")
+        use_relations = search_relations_taxa_list(taxon_list, use_terms, ["use"]*len(use_terms))
+        use_relations.to_csv(os.path.join(outdir, "use_relations.csv"), index=False)

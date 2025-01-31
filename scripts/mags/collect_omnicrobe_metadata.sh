@@ -13,6 +13,8 @@ sed -i '/NA/d' $outdir/taxids.tmp
 sed -i '/taxids/d' $outdir/taxids.tmp
 
 #### RUN SCRIPT ####
-python $scriptdir/access_omnicrobe_db.py $outdir/taxids.tmp $outdir
+python $scriptdir/access_omnicrobe_db.py $outdir/taxids.tmp $outdir "habitat"
+python $scriptdir/access_omnicrobe_db.py $outdir/taxids.tmp $outdir "phenotype"
+python $scriptdir/access_omnicrobe_db.py $outdir/taxids.tmp $outdir "use"
 
 rm $outdir/taxids.tmp
