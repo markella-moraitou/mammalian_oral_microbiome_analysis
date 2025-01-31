@@ -1,6 +1,6 @@
 ##### PLOT SAMPLE METADATA #####
 
-#### 
+#### Summarise information about the samples and diet ####
 
 ################
 #### SET UP ####
@@ -17,7 +17,11 @@ library(ggnewscale)
 
 # Directory and file paths paths
 indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq output and sample metadata 
-subdir <- normalizePath(file.path("..", "..", "output", "community_analysis")) # subdirectory for the output of this script
+subdir <- normalizePath(file.path("..", "..", "output", "community_analysis", "sample_summary_plot")) # subdirectory for the output of this script
+phydir <- normalizePath(file.path("..", "..", "output", "community_analysis", "phyloseq_objects")) # Directory with phyloseq objects
+
+# Create output directory if it doesn't exist
+if (!dir.exists(subdir)) dir.create(subdir, recursive = TRUE)
 
 ## Set up for plotting
 source(file.path("..", "plot_setup.R"))
@@ -28,7 +32,8 @@ theme_set(custom_theme())
 #####  LOAD INPUT #####
 #######################
 
-metadata <- read.table(file.path(subdir, "phyloseq_objects", "phy_sp_SAM.tsv"), sep = "\t", header=TRUE, row.names=1, stringsAsFactors = FALSE)
+phy_sp_f <- readRDS(file.path(phydir, "phy_sp_f.RDS"))
+metadata <- data.frame(phy_sp_f@sam_data)
 
 ########################
 #### SUMMARISE DIET ####
