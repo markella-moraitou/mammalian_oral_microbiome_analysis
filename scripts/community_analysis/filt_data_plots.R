@@ -105,15 +105,15 @@ ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", w
 ####################
 
 #### All data ####
-ord <- ordinate(phy_sp_f_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_sp_f_clr, "PCoA", "euclidean")
 
 # Get shape scales for plotting
 diet_shape_scale <- c("Animalivore" = 8, "Omnivore" = 9 , "Frugivore" = 2, "Herbivore" = 16)
-species_shape_scale <- 1:length(unique(phy_sp_f_norm@sam_data$Common.name))
-names(species_shape_scale) <- unique(phy_sp_f_norm@sam_data$Common.name)
+species_shape_scale <- 1:length(unique(phy_sp_f_clr@sam_data$Common.name))
+names(species_shape_scale) <- unique(phy_sp_f_clr@sam_data$Common.name)
 
 # Color by order
-p <- plot_ordination(phy_sp_f_norm, ord, color="Order_grouped", shape="calculated_species_main_diet") +
+p <- plot_ordination(phy_sp_f_clr, ord, color="Order_grouped", shape="calculated_species_main_diet") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
@@ -122,7 +122,7 @@ p <- plot_ordination(phy_sp_f_norm, ord, color="Order_grouped", shape="calculate
 
 ggsave(file.path(subdir, "PCoA_order_1_2.png"), p, width=8, height=6)
 
-p <- plot_ordination(phy_sp_f_norm, ord, axes = c(3, 4), color="Order_grouped", shape="calculated_species_main_diet") +
+p <- plot_ordination(phy_sp_f_clr, ord, axes = c(3, 4), color="Order_grouped", shape="calculated_species_main_diet") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
@@ -132,7 +132,7 @@ p <- plot_ordination(phy_sp_f_norm, ord, axes = c(3, 4), color="Order_grouped", 
 ggsave(file.path(subdir, "PCoA_order_3_4.png"), p, width=8, height=6)
 
 # Color by diet
-p <- plot_ordination(phy_sp_f_norm, ord, color="calculated_species_main_diet", shape="Order_grouped") +
+p <- plot_ordination(phy_sp_f_clr, ord, color="calculated_species_main_diet", shape="Order_grouped") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
@@ -140,7 +140,7 @@ p <- plot_ordination(phy_sp_f_norm, ord, color="calculated_species_main_diet", s
 
 ggsave(file.path(subdir, "PCoA_diet_1_2.png"), p, width=8, height=6)
 
-p <- plot_ordination(phy_sp_f_norm, ord, axes = c(3, 4), color="calculated_species_main_diet", shape="Order_grouped") +
+p <- plot_ordination(phy_sp_f_clr, ord, axes = c(3, 4), color="calculated_species_main_diet", shape="Order_grouped") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
@@ -149,9 +149,9 @@ p <- plot_ordination(phy_sp_f_norm, ord, axes = c(3, 4), color="calculated_speci
 ggsave(file.path(subdir, "PCoA_diet_3_4.png"), p, width=8, height=6)
 
 #### Deep dataset ####
-ord <- ordinate(phy_deep_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_deep_clr, "PCoA", "euclidean")
 
-p <- plot_ordination(phy_deep_norm, ord, color="Order", shape="calculated_species_main_diet") +
+p <- plot_ordination(phy_deep_clr, ord, color="Order", shape="calculated_species_main_diet") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
@@ -161,9 +161,9 @@ p <- plot_ordination(phy_deep_norm, ord, color="Order", shape="calculated_specie
 ggsave(file.path(subdir, "PCoA_subset_deep_1_2.png"), p, width=8, height=6)
 
 #### Artiodactyla ####
-ord <- ordinate(phy_artio_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_artio_clr, "PCoA", "euclidean")
 
-p <- plot_ordination(phy_artio_norm, ord, color="calculated_species_main_diet", shape="Common.name") +
+p <- plot_ordination(phy_artio_clr, ord, color="calculated_species_main_diet", shape="Common.name") +
   geom_point(size=2, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values = species_shape_scale, name = "Species") +
@@ -173,9 +173,9 @@ p <- plot_ordination(phy_artio_norm, ord, color="calculated_species_main_diet", 
 ggsave(file.path(subdir, "PCoA_subset_artio_1_2.png"), p, width=8, height=6)
 
 #### Carnivora ####
-ord <- ordinate(phy_carni_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_carni_clr, "PCoA", "euclidean")
 
-p <- plot_ordination(phy_carni_norm, ord, color="calculated_species_main_diet", shape="Common.name") +
+p <- plot_ordination(phy_carni_clr, ord, color="calculated_species_main_diet", shape="Common.name") +
   geom_point(size=3, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values = c(15, 2, 4)) +
@@ -185,21 +185,21 @@ p <- plot_ordination(phy_carni_norm, ord, color="calculated_species_main_diet", 
 ggsave(file.path(subdir, "PCoA_subset_carni_1_2.png"), p, width=8, height=6)
 
 #### Primates ####
-ord <- ordinate(phy_prim_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_prim_clr, "PCoA", "euclidean")
 
-p <- plot_ordination(phy_prim_norm, ord, color="calculated_species_main_diet", shape="Common.name") +
+p <- plot_ordination(phy_prim_clr, ord, color="calculated_species_main_diet", shape="Common.name") +
   geom_point(size=3, alpha = 0.5) +
   theme(legend.position = "bottom") +
-  scale_shape_manual(values = 1:length(levels(phy_prim_norm@sam_data$Species))) +
+  scale_shape_manual(values = 1:length(levels(phy_prim_clr@sam_data$Species))) +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left")
 
 ggsave(file.path(subdir, "PCoA_subset_prim_1_2.png"), p, width=8, height=6)
 
 #### Habitat ####
-ord <- ordinate(phy_habitat_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_habitat_clr, "PCoA", "euclidean")
 
-p <- plot_ordination(phy_habitat_norm, ord, color="habitat.general", shape = "Common.name") +
+p <- plot_ordination(phy_habitat_clr, ord, color="habitat.general", shape = "Common.name") +
   geom_point(size=3, alpha = 0.5) +
   theme(legend.position = "bottom") +
   scale_shape_manual(values = species_shape_scale) +

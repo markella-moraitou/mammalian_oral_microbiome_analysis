@@ -12,7 +12,6 @@ library(phyloseq)
 library(tidyr)
 library(tibble)
 library(scales)
-library(decontam)
 library(cuperdec)
 library(cowplot)
 library(microbiomeutilities)
@@ -39,7 +38,7 @@ theme_set(custom_theme())
 
 # Load phy
 phy_sp <- readRDS(file.path(phydir, "phy_sp.RDS"))
-phy_sp_norm <- readRDS(file.path(phydir, "phy_sp_norm.RDS"))
+phy_sp_clr <- readRDS(file.path(phydir, "phy_sp_clr.RDS"))
 
 # Habitat OTU relations
 habitats_table <- read.csv(file.path(outdir, "habitat_relations.csv"))
@@ -357,31 +356,37 @@ write.table(assess_samples, file=file.path(subdir, "assess_samples.csv"), sep=",
 #### FILTERING ####
 ###################
 
+# Remove samples with an oral/contam ratio < 1 samples with less reads than the threshold and negatives
+contaminated_samples <- assess_samples %>% filter(oral_contam_ratio < 1) %>% pull(new_name)
+phy_sp_f <- prune_samples(!(sample_names(phy_sp) %in% contaminated_samples), phy_sp)
+phy_sp_f <- prune_samples(sample_sums(phy_sp_f) > min_samp & !phy_sp_f@sam_data$is.neg, phy_sp_f)
+phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
+
 # Filter out taxa than on average have a higher abundance in negatives
 common_in_contols <- assess_taxa %>% filter(mean_ratio < 2) %>% pull(OTU)
-phy_sp_f <- phy_sp %>% subset_taxa(!(taxa_names(phy_sp) %in% common_in_contols))
+phy_sp_f <- phy_sp_f %>% subset_taxa(!(taxa_names(phy_sp_f) %in% common_in_contols))
 
 # Filter out abundances less than the threshold
 phy_sp_f@otu_table[transform(phy_sp_f, "compositional")@otu_table < min_ab] <- 0
-
-# Remove samples with an oral/contam ratio < 1 samples with no reads and negatives
-contaminated_taxa <- assess_samples %>% filter(oral_contam_ratio < 1) %>% pull(new_name)
-phy_sp_f <- prune_samples(!(sample_names(phy_sp_f) %in% contaminated_taxa), phy_sp_f)
-phy_sp_f <- prune_samples(sample_sums(phy_sp_f) > 0 & !phy_sp_f@sam_data$is.neg, phy_sp_f)
-phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
 
 # Get number of taxa
 phy_sp_f@sam_data$taxa_filt <- estimate_richness(phy_sp_f, measures="Observed")$Observed
 
 # Normalise
-phy_sp_f_norm <- phy_sp_f %>% microbiome::transform("clr")
+phy_sp_f_clr <- phy_sp_f %>% microbiome::transform("clr")
 
 saveRDS(phy_sp_f, file.path(phydir, "phy_sp_f.RDS"))
-saveRDS(phy_sp_f_norm, file.path(phydir, "phy_sp_f_norm.RDS"))
+saveRDS(phy_sp_f_clr, file.path(phydir, "phy_sp_f_clr.RDS"))
 
 ########################
 #### CREATE SUBSETS ####
 ########################
+
+## Wild animals only
+phy_wild <- phy_sp_f %>% subset_samples(!(Species %in% c("Ovis aries", "Equus caballus", "Sus scrofa domesticus")))
+phy_wild <- phy_wild %>% subset_taxa(taxa_sums(phy_wild) > 0)
+
+phy_wild_clr <- transform(phy_wild, "clr")
 
 ## Marine terrestrial comparisons
 phy_habitat <- phy_sp_f %>%
@@ -389,7 +394,7 @@ phy_habitat <- phy_sp_f %>%
 
 phy_habitat <- phy_habitat %>% subset_taxa(taxa_sums(phy_habitat) > 0)
 
-phy_habitat_norm <- phy_habitat %>% microbiome::transform("clr")
+phy_habitat_clr <- phy_habitat %>% microbiome::transform("clr")
 
 ## Planned contrasts in more deeply sampled Order (Artiodactyla, Carnivora, Primates)
 # Artiodactyla
@@ -398,7 +403,7 @@ phy_artio <- phy_sp_f %>%
 
 phy_artio <- phy_artio %>% subset_taxa(taxa_sums(phy_artio) > 0)
 
-phy_artio_norm <- phy_artio %>% microbiome::transform("clr")
+phy_artio_clr <- phy_artio %>% microbiome::transform("clr")
 
 # Carnivora
 phy_carni <- phy_sp_f %>%
@@ -406,7 +411,7 @@ phy_carni <- phy_sp_f %>%
 
 phy_carni <- phy_carni %>% subset_taxa(taxa_sums(phy_carni) > 0)
 
-phy_carni_norm <- phy_carni %>% microbiome::transform("clr")
+phy_carni_clr <- phy_carni %>% microbiome::transform("clr")
 
 # Primates
 phy_prim <- phy_sp_f %>%
@@ -414,7 +419,7 @@ phy_prim <- phy_sp_f %>%
 
 phy_prim <- phy_prim %>% subset_taxa(taxa_sums(phy_prim) > 0)
 
-phy_norm_prim <- phy_prim %>% microbiome::transform("clr")
+phy_prim_clr <- phy_prim %>% microbiome::transform("clr")
 
 # All together
 phy_deep <- phy_sp_f %>%
@@ -422,10 +427,10 @@ phy_deep <- phy_sp_f %>%
 
 phy_deep <- phy_deep %>% subset_taxa(taxa_sums(phy_deep) > 0)
 
-phy_norm_deep <- phy_deep %>% microbiome::transform("clr")
+phy_deep_clr <- phy_deep %>% microbiome::transform("clr")
 
 # Save phyloseq objects
-for (obj in c("phy_habitat", "phy_artio", "phy_carni", "phy_prim", "phy_deep",
-               "phy_habitat_norm", "phy_artio_norm", "phy_carni_norm", "phy_norm_prim", "phy_norm_deep")) {
+for (obj in c("phy_wild", "phy_habitat", "phy_artio", "phy_carni", "phy_prim", "phy_deep",
+               "phy_wild_clr", "phy_habitat_clr", "phy_artio_clr", "phy_carni_clr", "phy_prim_clr", "phy_deep_clr")) {
   saveRDS(get(obj), file.path(phydir, paste0(obj, ".RDS")))
 }

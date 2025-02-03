@@ -117,7 +117,7 @@ meta$Order_grouped <- factor(meta$Order_grouped, levels = levels)
 meta$calculated_species_main_diet[meta$Species == "Papio anubis"] <- "Frugivore"
 
 # Turn diet categories to factors
-meta$diet.general <- factor(meta$diet.general, levels=c("Herbivore", "Frugivore", "Omnivore", "Animalivore"))
+meta$calculated_species_main_diet <- factor(meta$calculated_species_main_diet, levels=c("Herbivore", "Frugivore", "Omnivore", "Animalivore"))
 
 ## Get better samples names
 rename <- meta %>%
@@ -274,7 +274,7 @@ phy_sp@sam_data$is.neg <- grepl("blank|control", phy_sp@sam_data$Order_grouped)
 phy_sp@sam_data <- phy_sp@sam_data %>% data.frame %>% mutate(oral_to_soil_ratio=(p_mOral + p_aOral)/p_Sediment.Soil) %>% sample_data
 
 # CLR-normalisation
-phy_sp_norm <- phy_sp %>% transform('clr')
+phy_sp_clr <- phy_sp %>% transform('clr')
 
 #####################
 #### SAVE OUTPUT ####
@@ -284,13 +284,13 @@ phy_sp_norm <- phy_sp %>% transform('clr')
 dir.create(file.path(subdir, "phyloseq_objects"), showWarnings = FALSE)
 
 saveRDS(phy_sp, file.path(subdir, "phyloseq_objects", "phy_sp.RDS"))
-saveRDS(phy_sp_norm, file.path(subdir, "phyloseq_objects", "phy_sp_norm.RDS"))
+saveRDS(phy_sp_clr, file.path(subdir, "phyloseq_objects", "phy_sp_clr.RDS"))
 
 # Constituent parts of phyloseq object
 write.table(otu_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_OTU.tsv"), sep = "\t", row.names=TRUE, quote=FALSE)
 write.table(tax_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_TAX.tsv"), sep = "\t", row.names=TRUE, quote=FALSE)
 write.table(data.frame(sample_data(phy_sp)), file.path(subdir, "phyloseq_objects", "phy_sp_SAM.tsv"), sep = "\t", row.names=TRUE, quote=TRUE)
-write.table(otu_table(phy_sp_norm), file.path(subdir, "phyloseq_objects", "phy_sp_norm_OTU.tsv"), sep = "\t", row.names=TRUE, quote=TRUE)
+write.table(otu_table(phy_sp_clr), file.path(subdir, "phyloseq_objects", "phy_sp_clr_OTU.tsv"), sep = "\t", row.names=TRUE, quote=TRUE)
 
 # Entire taxonomy table
 write.table(taxonomy, file.path(subdir, "taxonomy_all.tsv"), sep = "\t", row.names=FALSE, quote=TRUE)

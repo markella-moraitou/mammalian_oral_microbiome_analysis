@@ -38,7 +38,7 @@ theme_set(custom_theme())
 
 # Load phy
 phy_sp <- readRDS(file.path(phydir, "phy_sp.RDS"))
-phy_sp_norm <- readRDS(file.path(phydir, "phy_sp_norm.RDS"))
+phy_sp_clr <- readRDS(file.path(phydir, "phy_sp_clr.RDS"))
 
 #######################
 #### SUMMARY PLOTS ####
@@ -121,14 +121,14 @@ ggsave(filename = file.path(subdir, "phy_sp_composition.png"), device="png", wid
 #### Ordinations ####
 
 # Get sample type as a factor
-phy_sp_norm@sam_data$sample_type <- factor(ifelse(!phy_sp_norm@sam_data$is.neg, "sample",
-                                             ifelse(phy_sp_norm@sam_data$Species == "Environmental control", "swab", "blank")),
+phy_sp_clr@sam_data$sample_type <- factor(ifelse(!phy_sp_clr@sam_data$is.neg, "sample",
+                                             ifelse(phy_sp_clr@sam_data$Species == "Environmental control", "swab", "blank")),
                                              levels = c("sample", "swab", "blank"))
 
-ord <- ordinate(phy_sp_norm, "PCoA", "euclidean")
+ord <- ordinate(phy_sp_clr, "PCoA", "euclidean")
 
 # Samples
-p <- plot_ordination(phy_sp_norm, ord, color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
+p <- plot_ordination(phy_sp_clr, ord, color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
   theme(legend.position = "bottom") +
   scale_shape_manual(values=c("swab"=0, "blank"=2, "sample"=16), name = "Is control/blank") +
   scale_color_manual(values=order_palette, name = "Order") +
@@ -136,7 +136,7 @@ p <- plot_ordination(phy_sp_norm, ord, color="Order_grouped", , shape="sample_ty
 
 ggsave(file.path(subdir, "phy_sp_sample_PCoA_1_2.png"), p, width=8, height=6)
 
-p <- plot_ordination(phy_sp_norm, ord, axes = c(3,4), color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
+p <- plot_ordination(phy_sp_clr, ord, axes = c(3,4), color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
   theme(legend.position = "bottom") +
   scale_shape_manual(values=c("swab"=0, "blank"=2, "sample"=16), name = "Is control/blank") +
   scale_color_manual(values=order_palette, name = "Order") +
