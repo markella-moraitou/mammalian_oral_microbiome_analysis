@@ -150,8 +150,8 @@ grad_palette <- grad_palette(10)
 
 png(filename = file.path(subdir, "phy_sp_heatmap.png"), width=16, height=20, units="in", res=300)
 plot_taxa_heatmap(phy_sp, subset.top=ntaxa(phy_sp), transformation="clr",
-                  VariableA=c("Order", "calculated_species_main_diet", "unmapped_count"),
-                  annotation_colors = list("Order" = order_palette, "calculated_species_main_diet" = diet_palette),
+                  VariableA=c("Order", "diet.general", "unmapped_count"),
+                  annotation_colors = list("Order" = order_palette, "diet.general" = diet_palette),
                   show_rownames = FALSE,
                   show_colnames = FALSE, heatcolors = grad_palette)$plot
 dev.off()

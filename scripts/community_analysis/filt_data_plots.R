@@ -34,6 +34,9 @@ source(file.path("..", "plot_setup.R"))
 plot_setup(file.path("..", "..", "input", "palettes"))
 theme_set(custom_theme())
 
+# Get ordination functions
+source(file.path("ordination_functions.R"))
+
 #######################
 #####  LOAD INPUT #####
 #######################
@@ -111,62 +114,6 @@ ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", w
 #### ORDINATION ####
 ####################
 
-#### FUNCTIONS ####
-# Add species centroid as phylopics
-centroids <- function(ordination, phyloseq) {
-  # Get ordination vectors as data frame and species info
-  ord_df <- data.frame(scores(ordination, choices = c(1:4), display = "sites"))
-  ord_df <- ord_df %>%
-    cbind(select(data.frame(phyloseq@sam_data), c(Common.name, Species, Order_grouped, Order, calculated_species_main_diet, habitat.general)))
-  # Group and calculate means
-  centroids <- ord_df %>% group_by(Common.name, Species, Order_grouped, Order, calculated_species_main_diet, habitat.general) %>%
-          summarise_all(.funs = mean, na.rm = TRUE)
-  centroids <- left_join(centroids, phylopics, by = c("Species" = "Species"))
-  return(centroids)
-}
-
-# Get loadings plot to display alongside PCA
-loadings_plot <- function(ordination, axes, top_taxa = 20) {
-  # Get loadings
-  loadings <- data.frame(scores(ordination, choices = axes, display = "species"))
-  axes_names=paste0("PC", axes)
-  eigval <- ordination$CA$eig[axes]
-  # Keep only taxa with highest loadings
-  loadings_filt <- loadings %>%
-    # Arrange by the sum of the absolute values of the loadings, weighted by the eigenvalues (longest arrow)
-    arrange(desc(abs(!!sym(axes_names[1])*eigval[1] + !!sym(axes_names[2])*eigval[2]))) %>%
-    # Keep only top taxa
-    head(top_taxa) %>% rownames_to_column("taxon") %>%
-    # Get labels for plotting
-    mutate(genus = gsub(" .*", "", taxon)) %>%
-    # Create labels for taxa by keeping only first letter of genus
-    mutate(label = gsub("([A-Z])[a-z]+", "\\1.", taxon)) %>%
-    # Arrange by first axis
-    arrange(desc(!!sym(axes_names[1]))) %>% mutate(label = factor(label, levels = label))
-  # Keep top 8 genera and group the rest as "Other"
-  top_genera <- table(loadings_filt$genus) %>% sort(decreasing = TRUE) %>% names() %>% head(8)
-  loadings_filt <- loadings_filt %>% mutate(genus = ifelse(genus %in% top_genera, genus, "Other"))
-  # Get genus palette
-  genera <- loadings_filt %>% filter(genus != "Other") %>% pull(genus) %>% unique
-  genus_palette <- setNames(wes_palette("Darjeeling1", length(genera), type = "continuous"), genera)
-  genus_palette["Other"] <- "grey"
-  # Set genus as factor
-  loadings_filt$genus <- factor(loadings_filt$genus, levels = names(genus_palette))
-  # Melt and plot
-  loadings_melt <- pivot_longer(loadings_filt, cols = starts_with("PC"), names_to = "PC", values_to = "loading")
-  p <- ggplot(loadings_melt, aes(y = label, x = loading, fill = genus)) +
-        geom_bar(stat = "identity", colour = "black") +
-        facet_grid(~PC, scales = "free_y", space = "free_y", switch = "y") +
-        geom_vline(xintercept = 0, linetype = "dotted", size = 1) +
-        scale_fill_manual(values = genus_palette, name = "Genus") +
-        theme(axis.text.y = element_text(face = "italic", family = "serif", size = 8),
-              axis.ticks = element_blank(), axis.title = element_blank(),
-              panel.grid = element_blank(),
-              strip.background = element_rect(colour = "white"),
-              legend.position = "left")
-  return(p)
-}
-
 # Get shape scales for plotting
 diet_shape_scale <- c("Animalivore" = 8, "Omnivore" = 9 , "Frugivore" = 2, "Herbivore" = 16)
 
@@ -186,7 +133,7 @@ p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
 ggsave(file.path(subdir, "screeplot_all.png"), p, width=8, height=6)
 
 # Color by order
-p <- ord_plot(ord, colour="Order_grouped", shape="calculated_species_main_diet", alpha = 0.5) +
+p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", alpha = 0.5) +
   custom_theme() +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
   scale_color_manual(values=order_palette, name = "Order") +
@@ -202,7 +149,7 @@ p <- plot_grid(p + theme(legend.position = "right"),
 ggsave(file.path(subdir, "PCA_order_1_2.png"), p, width=8, height=12)
 
 # Axes 3 & 4
-p <- ord_plot(ord, colour="Order_grouped", shape="calculated_species_main_diet", axes = c(3, 4)) +
+p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", axes = c(3, 4)) +
   custom_theme() +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
   scale_color_manual(values=order_palette, name = "Order") +
@@ -218,12 +165,12 @@ p <- plot_grid(p + theme(legend.position = "right"),
 ggsave(file.path(subdir, "PCA_order_3_4.png"), p, width=8, height=12)
 
 # Color by diet
-p <- ord_plot(ord, colour="calculated_species_main_diet", shape="Order_grouped") +
+p <- ord_plot(ord, colour="diet.general", shape="Order_grouped") +
   custom_theme() +
   scale_shape_manual(values=order_shape_scale, name = "Order") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
-  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = calculated_species_main_diet), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
 
 # Plot loadings alongside
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
@@ -233,12 +180,12 @@ p <- plot_grid(p + theme(legend.position = "right"),
 
 ggsave(file.path(subdir, "PCA_diet_1_2.png"), p, width=8, height=12)
 
-p <- ord_plot(ord, colour="calculated_species_main_diet", shape="Order_grouped", axes = 3:4) +
+p <- ord_plot(ord, colour="diet.general", shape="Order_grouped", axes = 3:4) +
   custom_theme() +
   scale_shape_manual(values=order_shape_scale, name = "Order") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
-  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = calculated_species_main_diet), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
 
 # Plot loadings alongside
 p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 30)
@@ -257,7 +204,7 @@ p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
 
 ggsave(file.path(subdir, "screeplot_deep.png"), p, width=8, height=6)
 
-p <- ord_plot(ord, colour="Order", shape="calculated_species_main_diet") +
+p <- ord_plot(ord, colour="Order", shape="diet.general") +
   custom_theme() +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
   scale_color_manual(values=order_palette, name = "Order") +
@@ -273,7 +220,7 @@ p <- plot_grid(p + theme(legend.position = "right"),
 ggsave(file.path(subdir, "PCA_subset_deep_1_2.png"), p, width=8, height=12)
 
 # Axes 3 & 4
-p <- ord_plot(ord, colour="Order", shape="calculated_species_main_diet", axes = c(3, 4)) +
+p <- ord_plot(ord, colour="Order", shape="diet.general", axes = c(3, 4)) +
   custom_theme() +
   scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
   scale_color_manual(values=order_palette, name = "Order") +
@@ -297,12 +244,12 @@ p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
 
 ggsave(file.path(subdir, "screeplot_artio.png"), p, width=8, height=6)
 
-p <- ord_plot(ord, colour="calculated_species_main_diet", shape="Common.name") +
+p <- ord_plot(ord, colour="diet.general", shape="Common.name") +
   custom_theme() +
   scale_shape_manual(values = species_shape_scale, name = "Species") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
-  geom_phylopic(data = centroids(ord@ord, phy_artio_clr), aes(colour = calculated_species_main_diet), uuid = centroids(ord@ord, phy_artio_clr)$uid, width = 0.2, alpha = 0.8)
+  geom_phylopic(data = centroids(ord@ord, phy_artio_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_artio_clr)$uid, width = 0.2, alpha = 0.8)
 
 # Plot loadings alongside
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
@@ -345,12 +292,12 @@ p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
 
 ggsave(file.path(subdir, "screeplot_prim.png"), p, width=8, height=6)
 
-p <- ord_plot(ord, colour="calculated_species_main_diet", shape="Common.name") +
+p <- ord_plot(ord, colour="diet.general", shape="Common.name") +
   custom_theme() +
   scale_shape_manual(values = species_shape_scale, name = "Species") +
   scale_color_manual(values = diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
-  geom_phylopic(data = centroids(ord@ord, phy_prim_clr), aes(colour = calculated_species_main_diet), uuid = centroids(ord@ord, phy_prim_clr)$uid, width = 0.2, alpha = 0.8)
+  geom_phylopic(data = centroids(ord@ord, phy_prim_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_prim_clr)$uid, width = 0.2, alpha = 0.8)
 
 # Plot loadings alongside
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
@@ -387,8 +334,8 @@ grad_palette <- grad_palette(10)
 
 png(filename = file.path(subdir, "heatmap_all_taxa.png"), width=16, height=20, units="in", res=300)
 plot_taxa_heatmap(phy_sp_f, subset.top=ntaxa(phy_sp_f), transformation="clr",
-                  VariableA=c("Order", "calculated_species_main_diet", "unmapped_count"),
-                  annotation_colors = list("Order" = order_palette, "calculated_species_main_diet" = diet_palette),
+                  VariableA=c("Order", "diet.general", "unmapped_count"),
+                  annotation_colors = list("Order" = order_palette, "diet.general" = diet_palette),
                   show_rownames = FALSE,
                   show_colnames = FALSE, heatcolors = grad_palette)$plot
 dev.off()
