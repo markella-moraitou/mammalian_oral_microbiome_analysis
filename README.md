@@ -11,6 +11,7 @@ flowchart TD;
 ```
 
 Analysis workflow for metagenomes-assembled genomes analysis:
+
 ```mermaid
 flowchart TD;
     A[Prep MAG tree and metadata]-->B[Plot MAG tree]
