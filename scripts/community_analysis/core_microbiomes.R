@@ -15,6 +15,8 @@ library(ggVennDiagram)
 library(microViz)
 library(vegan)
 library(rphylopic)
+library(wesanderson)
+library(cowplot)
 
 #### VARIABLES AND WORKING DIRECTORY ####
 
@@ -33,6 +35,8 @@ theme_set(custom_theme())
 
 source(file.path("ordination_functions.R"))
 
+set.seed(123)
+
 #######################
 #####  LOAD INPUT #####
 #######################
@@ -48,10 +52,13 @@ phylopics <- read.csv(file.path(indir, "palettes", "phylopics.csv"), stringsAsFa
 #### PROCESS ####
 #################
 
+# Since we are dealing with presence absence, I will rarefy to the lowest number of reads in the dataset
+phy_sp_rarefied <- phy_sp_f %>% rarefy_even_depth(rngseed=123, sample.size = 50000, replace = FALSE)
+
 ## Calculate prevalence of each OTU in each species
 
 # Prevalence per species
-species <- phy_sp_f@sam_data$Species %>% levels
+species <- phy_sp_rarefied@sam_data$Species %>% levels
 prevalence <- data.frame(row.names = species)
 
 for (spe in species) {
@@ -145,7 +152,7 @@ ggsave(core_genera_venn, file=file.path(subdir, "core_genera_venn.png"),
 
 #### PCA with only core order taxa ####
 
-phy_core <- phy_sp_f %>% subset_taxa(taxa_names(phy_sp_f) %in% core_species_per_order$core_taxa) %>%
+phy_core <- phy_sp_rarefied %>% subset_taxa(genus %in% unique(unlist(core_genera))) %>%
     subset_samples(Order %in% core_species_per_order$host_order) %>%
     # Agglomerate by genus
     tax_glom(taxrank = "genus")
@@ -185,13 +192,14 @@ ggsave(p, file = file.path(subdir, "pca_core_order_3_4.png"), width = 8, height 
 #### Heatmap ####
 
 # Get more info on taxon category
-heat_data <- transform(phy_core, "log10p") %>% psmelt %>%
-        select(OTU, Sample, Order, Abundance) %>%
-        mutate(taxon_type = case_when(OTU %in% Reduce(intersect, core_genera) ~ "Mammalian core",
+heat_data <- transform(phy_core, "compositional") %>% psmelt %>%
+        select(OTU, genus, Sample, Order, Abundance) %>%
+        # Log transform relative abundance
+        mutate(Abundance = log10(Abundance + 0.0001)) %>%
+        mutate(taxon_type = case_when(genus %in% Reduce(intersect, core_genera) ~ "Mammalian core genera",
                                       OTU %in% setdiff(core_genera[["Carnivora"]], unlist(core_genera[!names(core_genera) %in% "Carnivora"])) ~ "Carnivora core only",
-                                      OTU %in% intersect(core_genera[["Carnivora"]], intersect(core_genera[["Perissodactyla"]], core_genera[["Primates"]])) ~ "Non artiodactyl core",
                                       TRUE ~ "Other")) %>%
-        mutate(taxon_type = factor(taxon_type, levels = c("Mammalian core", "Non artiodactyl core", "Carnivora core only", "Other"))) %>%
+        mutate(taxon_type = factor(taxon_type, levels = c("Mammalian core genera", "Carnivora core only", "Other"))) %>%
         # Shorten order names for plotting
         mutate(Order = recode(Order, "Perissodactyla" = "Periss.", "Carnivora" = "Carn."))
 
@@ -202,7 +210,7 @@ p <- ggplot(heat_data, aes(x = Sample, y = OTU, fill = Abundance)) +
         geom_tile() +
         facet_grid(cols = vars(Order), scales = "free", space = "free",
                    rows = vars(taxon_type), switch = "y") +
-        scale_fill_gradientn(colors = grad_palette, name = "Abundance (log 10)") +
+        scale_fill_gradientn(colors = grad_palette, name = "Rel. abundance (log 10)") +
         theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
               legend.position = "bottom",
               panel.spacing.y = unit(1.5, "lines"),
@@ -231,10 +239,12 @@ core_taxa_abund <-
         # Get core taxa per order
         left_join(core_species_per_order, by = c("OTU" = "core_taxa", "Order" = "host_order", "genus" = "core_genus"),
                   relationship = "many-to-one") %>%
-        # If a taxon isnt core in that order, check if it is core in another order
-        mutate(is.core = case_when(!is.na(is.core) ~ is.core,
+        # Indicate if a taxon is part of the mammalian core mb.
+        # Alternatively, if it isnt core in all mammals or that specific order, check if it is core in another order
+        mutate(is.core = case_when(genus %in% Reduce(intersect, core_genera) ~ "Mammalian core",
+                                   !is.na(is.core) ~ is.core,
                                    OTU %in% core_species_per_order$core_taxa ~ "Core in other order")) %>%
-        mutate(is.core = factor(is.core, levels = c("Core in other order", "Core in this order"))) %>%
+        mutate(is.core = factor(is.core, levels = c("Core in other order", "Core in this order", "Mammalian core"))) %>%
         filter(!is.na(is.core)) %>%
         # Get relative abunddance of host taxa per sample
         group_by(Sample, Species, Common.name, Order, is.core) %>%
@@ -247,14 +257,54 @@ core_taxa_abund <-
         mutate(Order = recode(Order, "Perissodactyla" = "Periss.", "Carnivora" = "Carn."))
 
 # Plot
-p <- ggplot(core_taxa_abund, aes(y = Common.name, x = mean_abundance, fill = is.core)) +
+p1 <- ggplot(core_taxa_abund, aes(y = Common.name, x = mean_abundance, fill = is.core)) +
         geom_bar(stat = "identity") +
-        scale_fill_manual(values = c("#DA8A3D", "#DA4C3D"), name = "") +
+        scale_fill_manual(values = c("#FFDC7C", "#DA8A3D", "#DA4C3D"), name = "") +
         facet_grid(rows = vars(Order), scales = "free_y", space = "free_y") +
-        scale_x_continuous(expand = c(0, 0), limits = c(0, 1)) +
-        labs(x = "Relative abundance of core taxa") +
-        theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1)) +
+        scale_x_continuous(expand = c(0, 0), limits = c(0, 1), breaks = c(0.25, 0.5, 0.75)) +
+        labs(x = "Rel. abundance\nof core taxa") +
+        theme(legend.position = "bottom", legend.direction = "vertical",
+              axis.title.y = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1),
+              strip.background.y = element_blank(), strip.text.y = element_blank()) +
         guides(fill = guide_legend(reverse = TRUE))
 
-ggsave(p, file = file.path(subdir, "core_taxa_abundance.png"), width = 8, height = 8)
+#### Abundance of mammalian core taxa ####
 
+mamm_core_abund <- phy_melt %>%
+        select(OTU, genus, Sample, Species, Common.name, Order, Abundance) %>%
+        # Keep only the same orders we use for the PCA
+        filter(Order %in% core_species_per_order$host_order) %>%
+        # Get taxa that are the mammalian core taxa
+        filter(genus %in% Reduce(intersect, core_genera)) %>%
+        # Sum by genus
+        group_by(Sample, Species, Common.name, Order, genus) %>%
+        summarise(Abundance = sum(Abundance)) %>%
+        # Calculate mean abundance per species
+        group_by(Species, Common.name, Order, genus) %>%
+        summarise(mean_abundance = mean(Abundance)) %>%
+        # Shorten "Perissodactyla" for plotting
+        mutate(Order = recode(Order, "Perissodactyla" = "Periss.", "Carnivora" = "Carn.")) %>%
+        # Make genus a factor based on average abundance
+        mutate(genus = factor(genus, levels = unique(genus[order(mean_abundance)])))
+
+# Plot
+colours <- rev(c(wes_palette("Chevalier1", 4, type = "discrete"),
+                wes_palette("FantasticFox1", 5, type = "discrete")))
+
+p2 <- ggplot(mamm_core_abund, aes(y = Common.name, x = mean_abundance, fill = genus)) +
+        geom_bar(stat = "identity") +
+        scale_fill_manual(values = colours) +
+        facet_grid(rows = vars(Order), scales = "free_y", space = "free_y") +
+        scale_x_continuous(expand = c(0, 0), limits = c(0, 1), breaks = c(0.25, 0.5, 0.75)) +
+        labs(x = "Rel. abundance of\nmammalian core genera") +
+        theme(legend.position = "bottom", legend.direction = "vertical",
+              legend.title = element_blank(),  
+              axis.title.y = element_blank(),
+              axis.text.x = element_text(angle = 45, hjust = 1),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank()) +
+        guides(fill = guide_legend(reverse = TRUE, ncol = 2))
+
+p <- plot_grid(p1, p2, ncol = 2, align = "h", axis = "tb", rel_widths = c(1.5, 1))
+
+ggsave(p, file = file.path(subdir, "core_taxa_abundance.png"), width = 8, height = 8)
