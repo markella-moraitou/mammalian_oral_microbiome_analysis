@@ -39,7 +39,7 @@ tax_names = file.path(indir, "taxname_to_id.txt")
 # Sample metadata
 metadata_path <- file.path(indir, "sample_metadata.csv")
 sample_tax_path <- file.path(indir, "host_taxonomy.csv")
-species_habitats_path <- file.path(indir, "species_habitats.csv")
+species_traits_path <- file.path(indir, "species_traits.csv")
 quant_diet_path <- file.path(indir, "Lintulaakso_diet_filtered.csv")
 rc_path <- file.path(indir, "read_count.csv")
 rl_path <- file.path(indir, "read_length.csv")
@@ -54,7 +54,7 @@ names_to_ids <- read.table(tax_names, sep="\t", comment.char="", header=FALSE, c
 metadata <- read.csv(metadata_path) # Sample metadata
 sample_tax <- read.csv(sample_tax_path) %>%  # Sample taxonomy
   select(museum.species, genus, subfamily, infraorder, suborder, order, superorder, Common.name)
-species_habitats <- read.csv(species_habitats_path) # Species habitats
+species_traits <- read.csv(species_traits_path) # Species habitats
 quant_diet <- read.csv(quant_diet_path) # Diet quantification data from Lintulaakso et al. 2023 paper
 rc <- read.csv(rc_path) %>% rename_with( ~ paste0(., "_count")) # read count per step
 rl <- read.csv(rl_path) %>% rename_with( ~ paste0(., "_avlength")) # average read length per step
@@ -75,7 +75,7 @@ meta <- metadata
 meta <-
   meta %>%
   left_join(sample_tax, relationship = "many-to-many", by=c("Species"="Museum.species")) %>%
-  left_join(species_habitats, relationship = "many-to-many") %>%
+  left_join(species_traits, relationship = "many-to-many") %>%
   left_join(quant_diet, relationship="many-to-many") %>%
   left_join(rc, by=c("Ext.ID"="sample_count")) %>%
   left_join(rl, by=c("Ext.ID"="sample_avlength")) %>% 
