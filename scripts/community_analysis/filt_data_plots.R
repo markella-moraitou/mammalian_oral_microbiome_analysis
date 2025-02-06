@@ -110,9 +110,9 @@ p_bar <-
 ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", width=12, height=20,
        plot_grid(p, p_bar, ncol = 2, align = "h", rel_widths = c(4.5, 1.5)))
 
-####################
-#### ORDINATION ####
-####################
+########################
+#### PCA ORDINATION ####
+########################
 
 # Get shape scales for plotting
 diet_shape_scale <- c("Animalivore" = 8, "Omnivore" = 9 , "Frugivore" = 2, "Herbivore" = 16)
@@ -233,7 +233,7 @@ p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
                nrow = 2, rel_heights = c(4, 2))
 
-ggsave(file.path(subdir, "PCA_subset_deep_3_4.png"), p, width=12, height=6)
+ggsave(file.path(subdir, "PCA_subset_deep_3_4.png"), p, width=8, height=12)
 
 #### Artiodactyla ####
 ord <- ord_calc(phy_artio_clr, method = "PCA")
@@ -324,6 +324,62 @@ p <- plot_grid(p + theme(legend.position = "right"),
                nrow = 2, rel_heights = c(4, 2))
 
 ggsave(file.path(subdir, "PCA_subset_habitat_1_2.png"), p, width=8, height=12)
+
+#### Print phylopics legend ####
+phylopics$Common.name <- phy_sp_f@sam_data$Common.name[match(phylopics$Species, as.vector(phy_sp_f@sam_data$Species))]
+
+p <- ggplot(phylopics[!is.na(phylopics$Common.name),], aes(y = Common.name, x = 1)) +
+    geom_phylopic(aes(uuid = uid), height = 0.8) +
+    theme_void() + theme(axis.title = element_blank(), axis.text.x = element_blank(),
+                         plot.background = element_rect(fill = "white", color = "white"),
+                         axis.text.y = element_text(size = 5, hjust = 1))
+
+ggsave(file.path(subdir, "phylopics_legend.png"), p, width=1.5, height=4)
+
+########################
+#### RDA ORDINATION ####
+########################
+
+# Recode order and habitat as TRUE and FALSE
+phy_sp_f_clr <- phy_sp_f_clr %>%
+        ps_mutate(Artiodactyla = (Order == "Artiodactyla"),
+                  Carnivora = (Order == "Carnivora"),
+                  Perissodactyla = (Order == "Perissodactyla"),
+                  Primates = (Order == "Primates"),
+                  Marine = (habitat.general == "Marine"))
+
+# Species traits to use as constraints
+species_traits <- c("cp", "ee", "nfe", "cf", "Artiodactyla", "Perissodactyla", "Carnivora", "Primates", "Marine")
+
+#### All data ####
+ord <- ord_calc(phy_sp_f_clr, constraints = species_traits, method = "RDA")
+
+# Scree plot
+p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
+            xlim(paste0("RDA", 1:10))
+
+ggsave(file.path(subdir, "rda_screeplot_deep.png"), p, width=8, height=6)
+
+# Color by diet
+# Axes 1,2
+p <- ord_plot(ord, colour="diet.general", shape="Order", alpha = 0.5) +
+  custom_theme() +
+  scale_shape_manual(values=order_shape_scale, name = "Order") +
+  scale_color_manual(values=diet_palette, name = "Estimated diet") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+
+ggsave(file.path(subdir, "RDA_all_1_2.png"), p, width=8, height=6)
+
+# Axes 2,3
+p <- ord_plot(ord, colour="Order", shape="diet.general", alpha = 0.5, axes = c(2, 3)) +
+  custom_theme() +
+  scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
+  scale_color_manual(values=order_palette, name = "Order") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = Order), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+
+ggsave(file.path(subdir, "RDA_all_2_3.png"), p, width=8, height=6)
 
 #################
 #### HEATMAP ####
