@@ -52,6 +52,74 @@ host_trees <- read.nexus(file.path(indir, "mammal_vertlife.nex"))
 taxa_uses <- read.csv(file.path(outdir, "use_relations.csv"), header=TRUE)
 
 ########################
+#### RDA ORDINATION ####
+########################
+
+# Recode order and habitat as TRUE and FALSE
+# Also scale protein, fiber and carbohydrate content
+phy_sp_f_clr <- phy_sp_f_clr %>%
+        ps_mutate(Artiodactyla = (Order == "Artiodactyla"),
+                  Carnivora = (Order == "Carnivora"),
+                  Perissodactyla = (Order == "Perissodactyla"),
+                  Primates = (Order == "Primates"),
+                  Marine = (habitat.general == "Marine"),
+                  protein = scale(cp)[,1],
+                  fiber = scale(cf)[,1],
+                  carbohydrate = scale(nfe)[,1])
+
+# Species traits to use as constraints
+species_traits <- c("carbohydrate", "fiber", "Artiodactyla", "Perissodactyla", "Carnivora", "Primates", "Marine")
+
+#### All data ####
+ord <- ord_calc(phy_sp_f_clr, constraints = species_traits, method = "RDA")
+
+# Select variables and check for collinearity
+ord_step <- step(ord@ord, scope = formula(ord@ord), test = "perm")
+vif.cca(ord_step)
+
+# Scree plot
+p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
+            xlim(paste0("RDA", 1:10))
+
+ggsave(file.path(subdir, "rda_screeplot_all.png"), p, width=8, height=6)
+
+# Color by diet
+# Axes 1,2
+p <- ord_plot(ord, colour="diet.general", shape="Order", alpha = 0.5) +
+  custom_theme() +
+  scale_shape_manual(values=order_shape_scale, name = "Order") +
+  scale_color_manual(values=diet_palette, name = "Estimated diet") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+
+p_l <- loadings_plot_rda(ord@ord, axes = c(1, 2), top_taxa = 30)
+
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 2))
+
+ggsave(file.path(subdir, "RDA_all_1_2.png"), p, width=8, height=12)
+
+# Axes 2,3
+p <- ord_plot(ord, colour="Order", shape="diet.general", alpha = 0.5, axes = c(2, 3)) +
+  custom_theme() +
+  scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
+  scale_color_manual(values=order_palette, name = "Order") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = Order), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+
+p_l <- loadings_plot_rda(ord@ord, axes = c(2, 3), top_taxa = 30)
+
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 2))
+
+ggsave(file.path(subdir, "RDA_all_2_3.png"), p, width=8, height=12)
+
+#### Test
+anova(ord@ord, by = "margin", perm = 999)
+
+########################
 #### PHYLOSYMBIOSIS ####
 ########################
 
