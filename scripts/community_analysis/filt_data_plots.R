@@ -110,11 +110,11 @@ p_bar <-
 ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", width=12, height=20,
        plot_grid(p, p_bar, ncol = 2, align = "h", rel_widths = c(4.5, 1.5)))
 
-########################
-#### PCA ORDINATION ####
-########################
+####################################
+#### PCA ORDINATION ON CLR DATA ####
+####################################
 
-# Get shape scales for plotting
+#### Get shape scales for plotting ####
 diet_shape_scale <- c("Animalivore" = 8, "Omnivore" = 9 , "Frugivore" = 2, "Herbivore" = 16)
 
 uniq_species <- unique(subset_samples(phy_sp_f_clr, Order %in% c("Primates", "Carnivora", "Artiodactyla") | habitat.general == "Aquatic")@sam_data$Common.name)
@@ -144,9 +144,9 @@ p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", alpha = 0.5) +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_order_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_order_1_2.png"), p, width=8, height=10)
 
 # Axes 3 & 4
 p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", axes = c(3, 4)) +
@@ -160,9 +160,9 @@ p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", axes = c(3, 4))
 p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_order_3_4.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_order_3_4.png"), p, width=8, height=10)
 
 # Color by diet
 p <- ord_plot(ord, colour="diet.general", shape="Order_grouped") +
@@ -176,9 +176,9 @@ p <- ord_plot(ord, colour="diet.general", shape="Order_grouped") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_diet_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_diet_1_2.png"), p, width=8, height=10)
 
 p <- ord_plot(ord, colour="diet.general", shape="Order_grouped", axes = 3:4) +
   custom_theme() +
@@ -191,9 +191,9 @@ p <- ord_plot(ord, colour="diet.general", shape="Order_grouped", axes = 3:4) +
 p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_diet_3_4.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_diet_3_4.png"), p, width=8, height=10)
 
 #### Deep dataset ####
 ord <- ord_calc(phy_deep_clr, method = "PCA")
@@ -215,9 +215,9 @@ p <- ord_plot(ord, colour="Order", shape="diet.general") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_deep_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_deep_1_2.png"), p, width=8, height=10)
 
 # Axes 3 & 4
 p <- ord_plot(ord, colour="Order", shape="diet.general", axes = c(3, 4)) +
@@ -231,9 +231,9 @@ p <- ord_plot(ord, colour="Order", shape="diet.general", axes = c(3, 4)) +
 p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_deep_3_4.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_deep_3_4.png"), p, width=8, height=10)
 
 #### Artiodactyla ####
 ord <- ord_calc(phy_artio_clr, method = "PCA")
@@ -255,9 +255,9 @@ p <- ord_plot(ord, colour="diet.general", shape="Common.name") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_artio_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_artio_1_2.png"), p, width=8, height=10)
 
 #### Carnivora ####
 ord <- ord_calc(phy_carni_clr, method = "PCA")
@@ -279,9 +279,9 @@ p <- ord_plot(ord, colour="habitat.general", shape="Common.name") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_carni_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_carni_1_2.png"), p, width=8, height=10)
 
 #### Primates ####
 ord <- ord_calc(phy_prim_clr, method = "PCA")
@@ -303,9 +303,9 @@ p <- ord_plot(ord, colour="diet.general", shape="Common.name") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_prim_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_prim_1_2.png"), p, width=8, height=10)
 
 #### Habitat ####
 ord <- ord_calc(phy_habitat_clr, method = "PCA")
@@ -321,9 +321,9 @@ p <- ord_plot(ord, colour="habitat.general", shape = "Common.name") +
 p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
 p <- plot_grid(p + theme(legend.position = "right"),
                p_l + theme(legend.position = "right"),
-               nrow = 2, rel_heights = c(4, 2))
+               nrow = 2, rel_heights = c(4, 3))
 
-ggsave(file.path(subdir, "PCA_subset_habitat_1_2.png"), p, width=8, height=12)
+ggsave(file.path(subdir, "PCA_subset_habitat_1_2.png"), p, width=8, height=10)
 
 #### Print phylopics legend ####
 phylopics$Common.name <- phy_sp_f@sam_data$Common.name[match(phylopics$Species, as.vector(phy_sp_f@sam_data$Species))]
@@ -336,50 +336,81 @@ p <- ggplot(phylopics[!is.na(phylopics$Common.name),], aes(y = Common.name, x = 
 
 ggsave(file.path(subdir, "phylopics_legend.png"), p, width=1.5, height=4)
 
-########################
-#### RDA ORDINATION ####
-########################
-
-# Recode order and habitat as TRUE and FALSE
-phy_sp_f_clr <- phy_sp_f_clr %>%
-        ps_mutate(Artiodactyla = (Order == "Artiodactyla"),
-                  Carnivora = (Order == "Carnivora"),
-                  Perissodactyla = (Order == "Perissodactyla"),
-                  Primates = (Order == "Primates"),
-                  Marine = (habitat.general == "Marine"))
-
-# Species traits to use as constraints
-species_traits <- c("cp", "ee", "nfe", "cf", "Artiodactyla", "Perissodactyla", "Carnivora", "Primates", "Marine")
+######################################
+#### PCA ORDINATION ON PHILR DATA ####
+######################################
 
 #### All data ####
-ord <- ord_calc(phy_sp_f_clr, constraints = species_traits, method = "RDA")
+ord <- ord_calc(phy_sp_philr, method = "PCA")
 
 # Scree plot
 p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
-            xlim(paste0("RDA", 1:10))
+            xlim(c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10"))
 
-ggsave(file.path(subdir, "rda_screeplot_deep.png"), p, width=8, height=6)
+ggsave(file.path(subdir, "screeplot_all_philr.png"), p, width=8, height=6)
+
+# Color by order
+p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", alpha = 0.5) +
+  custom_theme() +
+  scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
+  scale_color_manual(values=order_palette, name = "Order") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_philr), aes(colour = Order_grouped), uuid = centroids(ord@ord, phy_sp_philr)$uid, width = 0.2, alpha = 0.8)
+
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 20)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
+
+ggsave(file.path(subdir, "PCA_order_philr_1_2.png"), p, width=8, height=10)
+
+# Axes 3 & 4
+p <- ord_plot(ord, colour="Order_grouped", shape="diet.general", axes = c(3, 4)) +
+  custom_theme() +
+  scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
+  scale_color_manual(values=order_palette, name = "Order") +
+  theme(legend.position = "left") +
+  geom_phylopic(data = centroids(ord@ord, phy_sp_philr), aes(colour = Order_grouped), uuid = centroids(ord@ord, phy_sp_philr)$uid, width = 0.2, alpha = 0.8)
+
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 20)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
+
+ggsave(file.path(subdir, "PCA_order_philr_3_4.png"), p, width=8, height=10)
 
 # Color by diet
-# Axes 1,2
-p <- ord_plot(ord, colour="diet.general", shape="Order", alpha = 0.5) +
+p <- ord_plot(ord, colour="diet.general", shape="Order_grouped") +
   custom_theme() +
   scale_shape_manual(values=order_shape_scale, name = "Order") +
   scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
   geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
 
-ggsave(file.path(subdir, "RDA_all_1_2.png"), p, width=8, height=6)
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 20)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
 
-# Axes 2,3
-p <- ord_plot(ord, colour="Order", shape="diet.general", alpha = 0.5, axes = c(2, 3)) +
+ggsave(file.path(subdir, "PCA_diet_philr_1_2.png"), p, width=8, height=10)
+
+p <- ord_plot(ord, colour="diet.general", shape="Order_grouped", axes = 3:4) +
   custom_theme() +
-  scale_shape_manual(values=diet_shape_scale, name = "Estimated diet") +
-  scale_color_manual(values=order_palette, name = "Order") +
+  scale_shape_manual(values=order_shape_scale, name = "Order") +
+  scale_color_manual(values=diet_palette, name = "Estimated diet") +
   theme(legend.position = "left") +
-  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = Order), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
+  geom_phylopic(data = centroids(ord@ord, phy_sp_f_clr), aes(colour = diet.general), uuid = centroids(ord@ord, phy_sp_f_clr)$uid, width = 0.2, alpha = 0.8)
 
-ggsave(file.path(subdir, "RDA_all_2_3.png"), p, width=8, height=6)
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 20)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
+
+ggsave(file.path(subdir, "PCA_diet_philr_3_4.png"), p, width=8, height=10)
 
 #################
 #### HEATMAP ####
@@ -417,6 +448,7 @@ p <- plot_richness(phy_sp_f, x="Species", measures=c("Observed")) +
   theme(legend.position = "none", axis.title.y = element_blank()) +
   ylab("Observed species richness") +
   coord_flip()
+
 ggsave(file.path(subdir, "alpha_diversity.png"), p, width=8, height=10)
 
 # Plot

@@ -49,6 +49,9 @@ min_samp <- 10^5
 # Set minimum relative abundance threshold
 min_ab <- 10^-3
 
+# Set minimum ratio of abundance in samples vs controls (averaged per OTU)
+s_b_ratio <- 1.5
+
 ##############################
 #### COLLECT INFO ON TAXA ####
 ##############################
@@ -92,7 +95,7 @@ abundance_ratios$OTU <- factor(abundance_ratios$OTU, levels = otu_order)
 abundance_ratios <- abundance_ratios %>% arrange(OTU)
 
 # Draw threshold of OTUs double as abundant in samples
-ythresh <- abundance_ratios %>% filter(mean_ratio > 2) %>% slice_min(mean_ratio, n = 1) %>% pull(OTU)
+ythresh <- abundance_ratios %>% filter(mean_ratio > s_b_ratio) %>% slice_min(mean_ratio, n = 1) %>% pull(OTU)
 
 # Plot
 p_a <- ggplot(abundance_ratios, aes(x = mean_ratio, y = OTU)) +
@@ -170,7 +173,9 @@ habitats_wide <- habitats %>% select(taxon, habitat, perc_occurences) %>% pivot_
 assess_taxa <- abundance_ratios %>%
                left_join(prevalence_df) %>%
                left_join(abundance_df) %>%
-               left_join(habitats_wide, by = c("OTU" = "taxon"))
+               left_join(habitats_wide, by = c("OTU" = "taxon")) %>%
+               # Identify OTUs that don't pass the filters
+               mutate(passed_ratio = mean_ratio > s_b_ratio)
 
 # Save table
 write.table(assess_taxa, file=file.path(subdir, "assess_taxa.csv"), sep=",", row.names=FALSE, quote=FALSE)
@@ -362,8 +367,8 @@ phy_sp_f <- prune_samples(!(sample_names(phy_sp) %in% contaminated_samples), phy
 phy_sp_f <- prune_samples(sample_sums(phy_sp_f) > min_samp & !phy_sp_f@sam_data$is.neg, phy_sp_f)
 phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
 
-# Filter out taxa than on average have a higher abundance in negatives
-common_in_contols <- assess_taxa %>% filter(mean_ratio < 2) %>% pull(OTU)
+# Filter out taxa based on their abundance ratio in samples vs controls
+common_in_contols <- assess_taxa %>% filter(mean_ratio < s_b_ratio) %>% pull(OTU)
 phy_sp_f <- phy_sp_f %>% subset_taxa(!(taxa_names(phy_sp_f) %in% common_in_contols))
 
 # Filter out abundances less than the threshold
@@ -372,65 +377,8 @@ phy_sp_f@otu_table[transform(phy_sp_f, "compositional")@otu_table < min_ab] <- 0
 # Get number of taxa
 phy_sp_f@sam_data$taxa_filt <- estimate_richness(phy_sp_f, measures="Observed")$Observed
 
-# Normalise
-phy_sp_f_clr <- phy_sp_f %>% microbiome::transform("clr")
+# Remove empty taxa
+phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
 
+# Save filtered phyloseq object
 saveRDS(phy_sp_f, file.path(phydir, "phy_sp_f.RDS"))
-saveRDS(phy_sp_f_clr, file.path(phydir, "phy_sp_f_clr.RDS"))
-
-########################
-#### CREATE SUBSETS ####
-########################
-
-## Wild animals only
-phy_wild <- phy_sp_f %>% subset_samples(!(Species %in% c("Ovis aries", "Equus caballus", "Sus scrofa domesticus")))
-phy_wild <- phy_wild %>% subset_taxa(taxa_sums(phy_wild) > 0)
-
-phy_wild_clr <- transform(phy_wild, "clr")
-
-## Marine terrestrial comparisons
-phy_habitat <- phy_sp_f %>%
-  subset_samples(Species %in% c("Otaria byronia", "Meles meles", "Ursus arctos", "Orcinus orca", "Hippopotamus amphibius", "Sus scrofa", "Dugong dugon", "Loxodonta africana"))
-
-phy_habitat <- phy_habitat %>% subset_taxa(taxa_sums(phy_habitat) > 0)
-
-phy_habitat_clr <- phy_habitat %>% microbiome::transform("clr")
-
-## Planned contrasts in more deeply sampled Order (Artiodactyla, Carnivora, Primates)
-# Artiodactyla
-phy_artio <- phy_sp_f %>%
-  subset_samples(Order == "Artiodactyla")
-
-phy_artio <- phy_artio %>% subset_taxa(taxa_sums(phy_artio) > 0)
-
-phy_artio_clr <- phy_artio %>% microbiome::transform("clr")
-
-# Carnivora
-phy_carni <- phy_sp_f %>%
-  subset_samples(Order == "Carnivora")
-
-phy_carni <- phy_carni %>% subset_taxa(taxa_sums(phy_carni) > 0)
-
-phy_carni_clr <- phy_carni %>% microbiome::transform("clr")
-
-# Primates
-phy_prim <- phy_sp_f %>%
-  subset_samples(Order == "Primates")
-
-phy_prim <- phy_prim %>% subset_taxa(taxa_sums(phy_prim) > 0)
-
-phy_prim_clr <- phy_prim %>% microbiome::transform("clr")
-
-# All together
-phy_deep <- phy_sp_f %>%
-  subset_samples(Order %in% c("Artiodactyla", "Carnivora", "Primates"))
-
-phy_deep <- phy_deep %>% subset_taxa(taxa_sums(phy_deep) > 0)
-
-phy_deep_clr <- phy_deep %>% microbiome::transform("clr")
-
-# Save phyloseq objects
-for (obj in c("phy_wild", "phy_habitat", "phy_artio", "phy_carni", "phy_prim", "phy_deep",
-               "phy_wild_clr", "phy_habitat_clr", "phy_artio_clr", "phy_carni_clr", "phy_prim_clr", "phy_deep_clr")) {
-  saveRDS(get(obj), file.path(phydir, paste0(obj, ".RDS")))
-}
