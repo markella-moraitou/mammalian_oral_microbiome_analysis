@@ -14,6 +14,7 @@ library(microbiome)
 library(ggplot2)
 library(RColorBrewer)
 library(ggExtra)
+library(microViz)
 library(microbiomeutilities)
 library(cowplot)
 
@@ -31,6 +32,8 @@ if (!dir.exists(subdir)) dir.create(subdir, recursive = TRUE)
 source(file.path("..", "plot_setup.R"))
 plot_setup(file.path("..", "..", "input", "palettes"))
 theme_set(custom_theme())
+
+source("ordination_functions.R")
 
 #######################
 #####  LOAD INPUT #####
@@ -125,24 +128,43 @@ phy_sp_clr@sam_data$sample_type <- factor(ifelse(!phy_sp_clr@sam_data$is.neg, "s
                                              ifelse(phy_sp_clr@sam_data$Species == "Environmental control", "swab", "blank")),
                                              levels = c("sample", "swab", "blank"))
 
-ord <- ordinate(phy_sp_clr, "PCoA", "euclidean")
+ord <-  ord_calc(phy_sp_clr, method = "PCA")
 
-# Samples
-p <- plot_ordination(phy_sp_clr, ord, color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
-  theme(legend.position = "bottom") +
+# Scree plot
+p <- ord %>% ord_get() %>% plot_scree() + custom_theme() +
+            xlim(c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10"))
+
+ggsave(file.path(subdir, "screeplot.png"), p, width=8, height=6)
+
+# Axes 1 and 2
+p <- ord_plot(ord, colour="Order_grouped", shape="sample_type", alpha = 0.5) +
+  custom_theme() +
   scale_shape_manual(values=c("swab"=0, "blank"=2, "sample"=16), name = "Is control/blank") +
   scale_color_manual(values=order_palette, name = "Order") +
   theme(legend.position = "left")
 
-ggsave(file.path(subdir, "phy_sp_sample_PCoA_1_2.png"), p, width=8, height=6)
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(1, 2), top_taxa = 30)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
 
-p <- plot_ordination(phy_sp_clr, ord, axes = c(3,4), color="Order_grouped", , shape="sample_type", title="PCoA plot of samples") +
-  theme(legend.position = "bottom") +
+ggsave(file.path(subdir, "phy_sp_sample_PCA_1_2.png"), p, width=8, height=10)
+
+# Axes 3 and 4
+p <- ord_plot(ord, colour="Order_grouped", shape="sample_type", alpha = 0.5, axes = c(3,4)) +
+  custom_theme() +
   scale_shape_manual(values=c("swab"=0, "blank"=2, "sample"=16), name = "Is control/blank") +
   scale_color_manual(values=order_palette, name = "Order") +
   theme(legend.position = "left")
 
-ggsave(file.path(subdir, "phy_sp_sample_PCoA_3_4.png"), p, width=8, height=6)
+# Plot loadings alongside
+p_l <- loadings_plot(ord@ord, axes = c(3, 4), top_taxa = 30)
+p <- plot_grid(p + theme(legend.position = "right"),
+               p_l + theme(legend.position = "right"),
+               nrow = 2, rel_heights = c(4, 3))
+
+ggsave(file.path(subdir, "phy_sp_sample_PCA_3_4.png"), p, width=8, height=10)
 
 #### Heatmap ####
 grad_palette <- colorRampPalette(c("#2D627B","#FFF7A4", "#E7C46E","#C24141"))
@@ -157,11 +179,11 @@ plot_taxa_heatmap(phy_sp, subset.top=ntaxa(phy_sp), transformation="clr",
 dev.off()
 
 #### Rarefaction curves ####
-p <- plot_alpha_rcurve(phy_sp, subsamples = seq(100, 10000, 500)) +
-  scale_fill_manual(values = order_palette, name = "Host order") +
-  scale_colour_manual(values = order_palette, name = "Host order")
+#p <- plot_alpha_rcurve(phy_sp) +
+#  scale_fill_manual(values = order_palette, name = "Host order") +
+#  scale_colour_manual(values = order_palette, name = "Host order")
 
-ggsave(file.path(subdir, "phy_sp_rarefaction.png"), p, width=8, height=6)
+#ggsave(file.path(subdir, "phy_sp_rarefaction.png"), p, width=8, height=6)
 
 #### Prevalence at different abundance thresholds ####
 prevalence <- data.frame()
@@ -188,9 +210,9 @@ p <- ggplot(data = prevalence, aes(x = Abundance_thres, y = OTU, fill = Prevalen
   geom_tile() +
   scale_fill_viridis_c() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
-  xlab("Abundance threshold") + ylab("OTU")
+  xlab("Abundance threshold") + ylab("taxa")
 
-ggsave(file.path(subdir, "phy_sp_prevalence.png"), p, width=8, height=15)
+ggsave(file.path(subdir, "phy_sp_prevalence.png"), p, width=4, height=8)
 
 #### Sample and taxa sums ####
 sample_sums <- data.frame(sum = sample_sums(phy_sp), order = sample_data(phy_sp)$Order_grouped) %>% rownames_to_column("Sample")
@@ -218,16 +240,16 @@ ggsave(file.path(subdir, "phy_sp_sums_distr.png"),
        width=8, height=8)
 
 #### Taxonomic richness and read count ####
-p = ggplot(phy_sp@sam_data, aes(x=unmapped_count, y=taxa_raw, color = is.neg)) +
-  geom_point(size=3) +
-  labs(x="Number of reads", y="Number of OTUs") +
-  scale_color_manual(values=c(`TRUE`="grey", `FALSE`="darkgreen"), name = "Is control/blank") +
+p = ggplot(phy_sp@sam_data, aes(x=sample_sums(phy_sp), y=taxa_raw, color = is.neg)) +
+  geom_point(size=2) +
+  labs(x="Number of reads classified", y="Number of OTUs") +
+  scale_color_manual(values=c(`TRUE`="grey", `FALSE`="darkgreen"), labels = c(`TRUE`="negative", `FALSE`="sample"), name = "") +
   scale_x_continuous(trans="log10") +
   theme(legend.position = "bottom")
 
 p <- ggMarginal(p, type="histogram", size=2, groupFill=TRUE)
 
-ggsave(file.path(subdir, "phy_sp_taxa_and_read_dist.png"), p, width=8, height=8)
+ggsave(file.path(subdir, "phy_sp_taxa_and_read_dist.png"), p, width=4, height=4)
 
 #### Rank abundance plot ####
 psm <- phy_spr %>% psmelt
@@ -243,10 +265,10 @@ write.table(rank_abund, file.path(subdir, "phy_sp_rank_abundance_taxa.csv"), sep
 
 # Plot
 p <- ggplot(data=rank_abund, aes(x=Rank, y=Abundance, colour=is.neg)) +
-  geom_point() +
+  geom_jitter(alpha = 0.3, size = 1, width = 0.05, height = 0.001) +
   scale_y_continuous(trans="log10") +
   scale_x_continuous(trans="log10") +
-  scale_color_manual(values=c(`TRUE`="grey", `FALSE`="darkgreen"), name = "Is control/blank") +
+  scale_color_manual(values=c(`TRUE`="grey30", `FALSE`="darkgreen"), name = "Is control/blank") +
   ylab("log-transformed relative abundance") + xlab("Abundance rank in sample")
 
 ggsave(file=file.path(subdir, "phy_sp_rank_abundance_plot.png"), p, width=8, height=6)
