@@ -1,5 +1,8 @@
 #### FUNCTIONS TO USE WITH PCA ORDINATIONS ####
-
+library(wesanderson)
+library(dplyr)
+library(vegan)
+library(tidyr)
 
 ## Add species centroid as phylopics
 centroids <- function(ordination, phyloseq) {
@@ -21,11 +24,10 @@ loadings_plot <- function(ordination, axes, top_taxa = 20) {
   axes_names=paste0("PC", axes)
   eigval <- ordination$CA$eig[axes]
   # Keep only taxa with highest loadings
-  loadings_filt <- loadings %>%
-    # Arrange by the sum of the absolute values of the loadings, weighted by the eigenvalues (longest arrow)
-    arrange(desc(abs(!!sym(axes_names[1])*eigval[1] + !!sym(axes_names[2])*eigval[2]))) %>%
-    # Keep only top taxa
-    head(top_taxa) %>% rownames_to_column("taxon") %>%
+  # Get half of top taxa for each axis
+  loadings_filt <- rbind(slice_max(loadings, order_by = abs(!!sym(axes_names[1])), n = ceiling(top_taxa/2)),
+                         slice_max(loadings, order_by = abs(!!sym(axes_names[2])), n = floor(top_taxa/2) )) %>% 
+    rownames_to_column("taxon") %>%
     # Get labels for plotting
     mutate(genus = gsub(" .*", "", taxon)) %>%
     # Create labels for taxa by keeping only first letter of genus
@@ -63,11 +65,10 @@ loadings_plot_rda <- function(ordination, axes, top_taxa = 20) {
   axes_names=paste0("RDA", axes)
   eigval <- ordination$CA$eig[axes]
   # Keep only taxa with highest loadings
-  loadings_filt <- loadings %>%
-    # Arrange by the sum of the absolute values of the loadings, weighted by the eigenvalues (longest arrow)
-    arrange(desc(abs(!!sym(axes_names[1])*eigval[1] + !!sym(axes_names[2])*eigval[2]))) %>%
-    # Keep only top taxa
-    head(top_taxa) %>% rownames_to_column("taxon") %>%
+  # Get half of top taxa for each axis
+  loadings_filt <- rbind(slice_max(loadings, order_by = !!sym(axes_names[1]), n = ceiling(top_taxa/2)),
+                         slice_max(loadings, order_by = !!sym(axes_names[2]), n = floor(top_taxa/2) )) %>% 
+    rownames_to_column("taxon") %>%
     # Get labels for plotting
     mutate(genus = gsub(" .*", "", taxon)) %>%
     # Create labels for taxa by keeping only first letter of genus
