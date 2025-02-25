@@ -44,7 +44,7 @@ phy_sp_clr <- readRDS(file.path(phydir, "phy_sp_clr.RDS"))
 habitats_table <- read.csv(file.path(outdir, "habitat_relations.csv"))
 
 # Set minimum sample content threshold
-min_samp <- 10^5
+min_samp <- 10^4
 
 # Set minimum relative abundance threshold
 min_ab <- 10^-3
@@ -69,12 +69,11 @@ phy_sp@sam_data$sample_type <- factor(ifelse(!phy_sp@sam_data$is.neg, "sample",
 phy_sp_r <- transform(phy_sp, "compositional")
 phy_sp_m <- phy_sp_r %>% psmelt 
 
-# Is a taxons abundance higher in samples or environmental controls?
-# Where does a sample have its highest relative abundance? Sample, blank or control?
+# Is a taxons abundance higher in samples or environmental controls on average
 abundance_ratios <- 
             phy_sp_m %>%
             # Add pseudocount to avoid division by zero
-            mutate(Abundance = Abundance + 1/max(unmapped_count, na.rm = TRUE)) %>%
+            mutate(Abundance = Abundance + 10^-5) %>%
             # Get mean and max abundance per OTU in samples, controls and blanks
             group_by(OTU) %>%
             mutate(sample_type = case_when(grepl("control", Species) ~ "control",
@@ -116,7 +115,7 @@ prevalence_df <-
 
 p_p <- ggplot(prevalence_df, aes(x = prevalence, fill = prevalence, y = OTU)) +
   geom_point(shape = 21) +
-  scale_colour_viridis_c(option = "magma") + xlab("\nprevalence") +
+  scale_colour_viridis_c(option = "magma") + xlab("prevalence\nin samples") +
   geom_hline(yintercept = ythresh, linetype = "dashed") +
   theme(legend.position="top", axis.text.y = element_blank(), axis.ticks.y = element_blank(),
         axis.title.y = element_blank(), , axis.title.x.top = element_text())
@@ -125,13 +124,13 @@ abundance_df <-
   phy_sp_m %>% filter(!is.neg) %>% group_by(OTU) %>% summarise(mean_abundance = mean(Abundance)) %>% ungroup %>%
   mutate(OTU = factor(OTU, levels = otu_order), 
         # Add pseudocount to avoid division by zero
-        mean_abundance = mean_abundance + min_ab/10)
+        mean_abundance = mean_abundance)
 
 # Plot
 p_ma <- ggplot(abundance_df, aes(x = mean_abundance, fill = mean_abundance, y = OTU)) +
   geom_point(shape = 21) +
   scale_colour_viridis_c() +
-  scale_x_log10() + xlab("mean\nrel. abundance") +
+  scale_x_log10() + xlab("mean abundance\nin samples") +
   # Add threshold line
   geom_vline(xintercept = min_ab, linetype = "dashed") +
   geom_hline(yintercept = ythresh, linetype = "dashed") +
@@ -199,6 +198,16 @@ p <- plot_grid(p_a + theme(legend.position="bottom"),
                p_h + theme(legend.position="none"), nrow = 1, align = "h", axis = "tb", rel_widths = c(1, 0.75, 0.75, 1))
 
 ggsave(file=file.path(subdir, "assess_taxa.png"), p, width=8, height=16)
+
+#### Print some info on the blanks and controls ####
+neg_taxa <- phy_sp_m %>% filter(is.neg) %>% group_by(Species, OTU) %>%
+            summarise(mean_abundance = mean(Abundance),
+                      prevalence = sum(Abundance > min_ab)/n()) %>%
+            filter(mean_abundance > 0 & prevalence > 0)
+
+neg_taxa$contaminant <- neg_taxa$OTU %in% assess_taxa$OTU[!assess_taxa$passed_ratio]
+
+write.table(neg_taxa, file=file.path(subdir, "neg_taxa.csv"), sep=",", row.names=FALSE, quote=FALSE)
 
 #################################
 #### COLLECT INFO ON SAMPLES ####
@@ -268,8 +277,12 @@ p_r <- ggplot(data = decom_tbl, aes(x = oral_contam_ratio, fill = oral_contam_ra
 
 #### Number of reads ####
 
-# Number of unmapped reads per sample
-p_c <- ggplot(data.frame(phy_sp@sam_data), aes(x = unmapped_count, y = new_name, fill = unmapped_count)) +
+# Number of classified reads per sample
+class_reads <- data.frame(classified_reads = sample_sums(phy_sp),
+                          new_name = sample_names(phy_sp_clr),
+                          Order_grouped = phy_sp@sam_data$Order_grouped)
+
+p_c <- ggplot(class_reads, aes(x = classified_reads, y = new_name, fill = classified_reads)) +
   geom_bar(stat = "identity") +
   scale_fill_viridis_c() +
   facet_grid(Order_grouped~., space = "free_y", scales = "free_y", switch = "y") +
@@ -351,8 +364,14 @@ p <- plot_grid(p_d, p_r_cpdc, p_c, p_bar, ncol = 4, align = "h", axis = "tb", re
 ggsave(file=file.path(subdir, "assess_samples.png"), p, width=8, height=18)
 
 ### Combine tables
-assess_samples <- decom_tbl %>% left_join(data.frame(phy_sp@sam_data) %>% select(new_name, unmapped_count), by = "new_name")
+assess_samples <- decom_tbl %>% left_join(select(class_reads, c(new_name, classified_reads)), by = "new_name")
 assess_samples$passed_cuperdec <- filter_result$Passed[match(assess_samples$new_name, filter_result$Sample)]
+assess_samples$passed_min_reads <- assess_samples$classified_reads > min_samp
+assess_samples$passed_oral_contam_ratio <- assess_samples$oral_contam_ratio > 1
+# Sometimes there is no decOM info, in that case consult only read count
+assess_samples$passed <- ifelse(!is.na(assess_samples$passed_oral_contam_ratio),
+                                       assess_samples$passed_min_reads & assess_samples$passed_oral_contam_ratio,
+                                       assess_samples$passed_min_reads)
 
 # Save table
 write.table(assess_samples, file=file.path(subdir, "assess_samples.csv"), sep=",", row.names=FALSE, quote=FALSE)
@@ -361,14 +380,18 @@ write.table(assess_samples, file=file.path(subdir, "assess_samples.csv"), sep=",
 #### FILTERING ####
 ###################
 
-# Remove samples with an oral/contam ratio < 1 samples with less reads than the threshold and negatives
-contaminated_samples <- assess_samples %>% filter(oral_contam_ratio < 1) %>% pull(new_name)
+# Remove samples with an oral/contam ratio < 1 samples with less reads than the threshold
+contaminated_samples <- assess_samples %>% filter(!passed_oral_contam_ratio & !is.neg) %>% pull(new_name)
+shallow_samples <- assess_samples %>% filter(!passed_min_reads & !is.neg) %>% pull(new_name)
+
 phy_sp_f <- prune_samples(!(sample_names(phy_sp) %in% contaminated_samples), phy_sp)
-phy_sp_f <- prune_samples(sample_sums(phy_sp_f) > min_samp & !phy_sp_f@sam_data$is.neg, phy_sp_f)
-phy_sp_f <- prune_taxa(taxa_sums(phy_sp_f) > 0, phy_sp_f)
+phy_sp_f <- prune_samples(!(sample_names(phy_sp_f) %in% shallow_samples), phy_sp_f)
+
+# Remove blanks and controls
+phy_sp_f <- prune_samples(!(phy_sp_f@sam_data$is.neg), phy_sp_f)
 
 # Filter out taxa based on their abundance ratio in samples vs controls
-common_in_contols <- assess_taxa %>% filter(mean_ratio < s_b_ratio) %>% pull(OTU)
+common_in_contols <- assess_taxa %>% filter(!passed_ratio) %>% pull(OTU)
 phy_sp_f <- phy_sp_f %>% subset_taxa(!(taxa_names(phy_sp_f) %in% common_in_contols))
 
 # Filter out abundances less than the threshold
