@@ -6,9 +6,11 @@ flowchart TD;
     B-->D[Assess and remove contaminants];
     D-->E[Normalisation];
     D-->F[Sample summary plots];
-    E-->G[Filtered dataset plots];
-    E-->H[Hypothesis testing];
-    D-->I[Core microbiome];
+    D-->G[Core microbiome];
+    E-->H[Filtered dataset plots];
+    E-->I[RDA analysis];
+    E-->J[Phylosymbiosis tests];
+    E-->K[Microbial phenotypes - host diet hypotheses];
 ```
 
 Analysis workflow for metagenomes-assembled genomes analysis:
