@@ -84,6 +84,7 @@ p = ggplot(data = phy_phylum_melt, aes(x = Abundance, y = Sample, fill = OTU)) +
   scale_x_continuous(expand = c(0,0)) +
   theme(legend.position = "bottom", legend.title.position = "top", legend.key.spacing.x = unit(0.5, "cm"),
         axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank()) +
+  guides(fill = guide_legend(nrow = 3, byrow = TRUE)) +
   xlab("")
 
 ## Get sample_metadata
@@ -107,8 +108,8 @@ p_bar <-
         strip.text = element_blank()) + scale_y_discrete(position = "right", label = setNames(species_bar$label, species_bar$Sample)) +
     xlab("") + ylab("")
 
-ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", width=12, height=20,
-       plot_grid(p, p_bar, ncol = 2, align = "h", rel_widths = c(4.5, 1.5)))
+ggsave(filename = file.path(subdir, "phy_sp_f_composition.png"), device="png", width=8, height=12,
+       plot_grid(p, p_bar, ncol = 2, align = "h", rel_widths = c(4, 2)))
 
 ####################################
 #### PCA ORDINATION ON CLR DATA ####
@@ -121,7 +122,7 @@ uniq_species <- unique(subset_samples(phy_sp_f_clr, Order %in% c("Primates", "Ca
 species_shape_scale <- c(1:25, 35:35+26-length(uniq_species))
 names(species_shape_scale) <- uniq_species
 
-order_shape_scale <- c("Carnivora" = 4, "Primates" = 19, "Artiodactyla" = 5, "Perissodactyla" = 2, "Rodentia" = 23, "Rest" = 12)
+order_shape_scale <- c("Carnivora" = 4, "Primates" = 19, "Artiodactyla" = 5, "Perissodactyla" = 2, "Rodentia" = 1, "Rest" = 12)
 
 #### All data ####
 ord <- ord_calc(phy_sp_f_clr, method = "PCA")
@@ -432,16 +433,16 @@ dev.off()
 #########################
 
 # Rarefy to min depth
-phy_sp_rarefied <- rarefy_even_depth(subset_samples(phy_sp_f, sample_sums(phy_sp_f) > 100), sample.size = 100, rngseed = 1)
+phy_sp_rarefied <- rarefy_even_depth(subset_samples(phy_sp_f, sample_sums(phy_sp_f) > 1000), sample.size = 100, rngseed = 1)
 
 # Create a named vector for the relabeling
 order_labels <- c("Rodentia" = "Rod.", "Carnivora" = "Carniv.")
 
 # Plot
 p <- plot_richness(phy_sp_f, x="Species", measures=c("Observed")) +
-  geom_boxplot(aes(fill=Species)) +
+  geom_boxplot(aes(fill=diet.general)) +
   theme(legend.position = "none") +
-  scale_fill_manual(values=species_palette, name = "Species") +
+  scale_fill_manual(values=diet_palette, name = "Species") +
   scale_x_discrete(labels = setNames(phy_sp_f@sam_data$Common.name, phy_sp_f@sam_data$Species)) +
   facet_grid(Order_grouped ~ ., scales = "free_y", space = "free_y",
              labeller = labeller(Order_grouped = as_labeller(order_labels, default = label_value))) +
@@ -453,9 +454,9 @@ ggsave(file.path(subdir, "alpha_diversity.png"), p, width=8, height=10)
 
 # Plot
 p <- plot_richness(phy_sp_rarefied, x="Species", measures=c("Observed")) +
-  geom_boxplot(aes(fill=Species)) +
+  geom_boxplot(aes(fill=diet.general)) +
   theme(legend.position = "none") +
-  scale_fill_manual(values=species_palette, name = "Species") +
+  scale_fill_manual(values=diet_palette, name = "Species") +
   scale_x_discrete(labels = setNames(phy_sp_f@sam_data$Common.name, phy_sp_f@sam_data$Species)) +
   facet_grid(Order_grouped ~ ., scales = "free_y", space = "free_y",
              labeller = labeller(Order_grouped = as_labeller(order_labels, default = label_value))) +

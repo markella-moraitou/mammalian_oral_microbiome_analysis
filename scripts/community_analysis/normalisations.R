@@ -22,9 +22,6 @@ indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq
 outdir <- normalizePath(file.path("..", "..", "output", "community_analysis"))
 phydir <- normalizePath(file.path(outdir, "phyloseq_objects")) # Directory with phyloseq objects
 
-# Create output directory if it does not exist
-if (!dir.exists(subdir)) dir.create(subdir, recursive = TRUE)
-
 ## Set up for plotting
 source(file.path("..", "plot_setup.R"))
 plot_setup(file.path("..", "..", "input", "palettes"))
@@ -75,21 +72,13 @@ resolved_names <- rbind(resolved_names_b, resolved_names_a)
 incertae_sedis <- resolved_names %>% filter(grepl("incertae_sedis", flags) | grepl("unplaced", flags))
 incertae_sedis$genus <- gsub(" .*", "", incertae_sedis$search_string)
 
-write.table(incertae_sedis, file = file.path(outdir, "rotl_incertae_sedis.tsv"), sep = "\t", row.names = FALSE, quote = TRUE)
+write.table(incertae_sedis, file = file.path(outdir, "rotl_incertae_sedis.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
 
-for (i in 1:nrow(incertae_sedis)) {
-  search_string <- incertae_sedis$search_string[i]
-  genus <- incertae_sedis$genus[i]
-  superkingdom <- incertae_sedis$superkingdom[i]
-  df <- tnrs_match_names(genus, context_name = superkingdom)
-  df$superkingdom <- superkingdom
-  resolved_names <- rbind(resolved_names, df)
-}
-
+# Remove incertae sedis and unplaced taxa
 resolved_names <- resolved_names %>% filter(!(search_string %in% incertae_sedis$search_string)) %>%
    filter(!grepl("unplaced", flags))
 
-write.table(resolved_names, file.path(phydir, "rotl_resolved_names.tsv"), sep="\t", row.names=FALSE, quote=FALSE)
+write.table(resolved_names, file.path(outdir, "rotl_resolved_names.tsv"), sep="\t", row.names=FALSE, quote=FALSE)
 
 # Get the phylogenetic tree
 tree <- tol_induced_subtree(ott_ids = resolved_names$ott_id)
@@ -99,7 +88,6 @@ tree <- tol_induced_subtree(ott_ids = resolved_names$ott_id)
 #########################
 
 ## So that the tips match the phyloseq object
-
 rename_tip_labels <- data.frame(original =  tree$tip.label,
                                 ott = as.numeric(gsub(".*ott", "", tree$tip.label))) %>%
                       # Get the taxa names by matching the OTT
@@ -156,6 +144,8 @@ rename_tip_labels <- rename_tip_labels %>%
                       mutate(match = taxon %in% taxa_names(phy_sp_f))
 
 write.table(select(rename_tip_labels, c(original, ott, taxon)), file = file.path(outdir, "rotl_rename_tips.tsv"), sep = "\t", row.names = FALSE, quote = FALSE)
+
+setdiff(taxa_names(phy_sp_f), rename_tip_labels$taxon)
 
 ## Also rename the node labels, for better readability
 # I will replace the otu codes with the actual taxon names

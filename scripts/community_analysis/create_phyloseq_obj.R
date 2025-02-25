@@ -22,6 +22,9 @@ library(microbiome)
 # Directory and file paths paths
 indir <- normalizePath(file.path("..", "..", "input")) # Directory with phyloseq output and sample metadata 
 subdir <- normalizePath(file.path("..", "..", "output", "community_analysis")) # subdirectory for the output of this script
+phydir <- normalizePath(file.path(subdir, "phyloseq_objects")) # subdirectory for the phyloseq objects
+
+dir.create(phydir, showWarnings = FALSE)
 
 options(ENTREZ_KEY = Sys.getenv("API_KEY"))
 
@@ -278,10 +281,8 @@ phy_sp_clr <- phy_sp %>% transform('clr')
 #####################
 
 # Phyloseq objects
-dir.create(file.path(subdir, "phyloseq_objects"), showWarnings = FALSE)
-
-saveRDS(phy_sp, file.path(subdir, "phyloseq_objects", "phy_sp.RDS"))
-saveRDS(phy_sp_clr, file.path(subdir, "phyloseq_objects", "phy_sp_clr.RDS"))
+saveRDS(phy_sp, file.path(phydir, "phy_sp.RDS"))
+saveRDS(phy_sp_clr, file.path(phydir, "phy_sp_clr.RDS"))
 
 # Constituent parts of phyloseq object
 write.table(otu_table(phy_sp), file.path(subdir, "phyloseq_objects", "phy_sp_OTU.tsv"), sep = "\t", row.names=TRUE, quote=FALSE)
